@@ -1,0 +1,17 @@
+{
+  "spec": {"width": 1080, "height": 1920, "fps": 30, "duration": 30.0, "voice": "Meijia"},
+  "shots": [
+    {"id": "S1", "start": 0.0,  "end": 3.4,  "color": "0B1020", "visual": "標題字卡＋成品畫面閃現",
+     "zh": "一句話，讓 AI 幫你做短影音。", "en": "One prompt. One short video."},
+    {"id": "S2", "start": 3.4,  "end": 9.0,  "color": "101828", "visual": "示意終端機：輸入需求，Fable 5.2 回覆分鏡表",
+     "zh": "先請 Fable 5.2 規劃腳本與分鏡。", "en": "Ask Fable 5.2 to plan the script and storyboard."},
+    {"id": "S3", "start": 9.0,  "end": 17.0, "color": "14213D", "visual": "Unity 場景自動生成：物件逐一出現、鏡頭環繞",
+     "zh": "它會寫 Unity 腳本，自動建場景、排動畫。", "en": "It writes Unity scripts to build scenes and animation."},
+    {"id": "S4", "start": 17.0, "end": 23.0, "color": "1B263B", "visual": "直式畫框輸出，聲波與字幕條疊上",
+     "zh": "直式輸出，再合成旁白與雙語字幕。", "en": "Render vertical, then add voice-over and bilingual subtitles."},
+    {"id": "S5", "start": 23.0, "end": 28.0, "color": "22223B", "visual": "手機示意畫面：上傳、選音樂、發布，搭配 mtk-viewer 觸控擴散圈",
+     "zh": "打開 Reels，上傳、選音樂、發布。", "en": "Open Reels: upload, pick music, publish."},
+    {"id": "S6", "start": 28.0, "end": 30.0, "color": "0B1020", "visual": "結尾字卡",
+     "zh": "換你試試看。", "en": "Your turn."}
+  ]
+}

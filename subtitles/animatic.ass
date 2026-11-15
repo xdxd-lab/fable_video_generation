@@ -1,0 +1,40 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: ZH,PingFang TC,62,&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,600,1
+Style: EN,Helvetica Neue,38,&H00E6E6E6,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,4,2,2,90,90,520,1
+Style: CardId,Menlo,120,&H00FFC864,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,8,90,90,420,1
+Style: Card,PingFang TC,46,&H00C8C8C8,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,8,120,120,600,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 1,0:00:00.25,0:00:03.30,ZH,,0,0,0,,一句話，讓 AI 幫你做短影音。
+Dialogue: 1,0:00:00.25,0:00:03.30,EN,,0,0,0,,One prompt. One short video.
+Dialogue: 0,0:00:00.00,0:00:03.40,CardId,,0,0,0,,S1
+Dialogue: 0,0:00:00.00,0:00:03.40,Card,,0,0,0,,（分鏡示意）\N標題字卡＋成品畫面閃現
+Dialogue: 1,0:00:03.65,0:00:07.88,ZH,,0,0,0,,先請 Fable 5.2 規劃腳本與分鏡。
+Dialogue: 1,0:00:03.65,0:00:07.88,EN,,0,0,0,,Ask Fable 5.2 to plan the script and storyboard.
+Dialogue: 0,0:00:03.40,0:00:09.00,CardId,,0,0,0,,S2
+Dialogue: 0,0:00:03.40,0:00:09.00,Card,,0,0,0,,（分鏡示意）\N示意終端機：輸入需求，Fable 5.2 回覆分鏡表
+Dialogue: 1,0:00:09.25,0:00:14.30,ZH,,0,0,0,,它會寫 Unity 腳本，自動建場景、排動畫。
+Dialogue: 1,0:00:09.25,0:00:14.30,EN,,0,0,0,,It writes Unity scripts to build scenes and animation.
+Dialogue: 0,0:00:09.00,0:00:17.00,CardId,,0,0,0,,S3
+Dialogue: 0,0:00:09.00,0:00:17.00,Card,,0,0,0,,（分鏡示意）\NUnity 場景自動生成：物件逐一出現、鏡頭環繞
+Dialogue: 1,0:00:17.25,0:00:21.66,ZH,,0,0,0,,直式輸出，再合成旁白與雙語字幕。
+Dialogue: 1,0:00:17.25,0:00:21.66,EN,,0,0,0,,Render vertical, then add voice-over and bilingual subtitles.
+Dialogue: 0,0:00:17.00,0:00:23.00,CardId,,0,0,0,,S4
+Dialogue: 0,0:00:17.00,0:00:23.00,Card,,0,0,0,,（分鏡示意）\N直式畫框輸出，聲波與字幕條疊上
+Dialogue: 1,0:00:23.25,0:00:27.90,ZH,,0,0,0,,打開 Reels，上傳、選音樂、發布。
+Dialogue: 1,0:00:23.25,0:00:27.90,EN,,0,0,0,,Open Reels: upload, pick music, publish.
+Dialogue: 0,0:00:23.00,0:00:28.00,CardId,,0,0,0,,S5
+Dialogue: 0,0:00:23.00,0:00:28.00,Card,,0,0,0,,（分鏡示意）\N手機示意畫面：上傳、選音樂、發布，搭配 mtk-viewer 觸控擴散圈
+Dialogue: 1,0:00:28.25,0:00:29.90,ZH,,0,0,0,,換你試試看。
+Dialogue: 1,0:00:28.25,0:00:29.90,EN,,0,0,0,,Your turn.
+Dialogue: 0,0:00:28.00,0:00:30.00,CardId,,0,0,0,,S6
+Dialogue: 0,0:00:28.00,0:00:30.00,Card,,0,0,0,,（分鏡示意）\N結尾字卡

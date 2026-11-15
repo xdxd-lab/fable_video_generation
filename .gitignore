@@ -1,0 +1,15 @@
+# build products
+output/
+audio/*.aiff
+audio/*.wav
+audio/samples/
+# Unity
+unity/[Ll]ibrary/
+unity/[Tt]emp/
+unity/[Oo]bj/
+unity/[Ll]ogs/
+unity/[Uu]ser[Ss]ettings/
+unity/Recordings/
+*.csproj
+*.sln
+.DS_Store
