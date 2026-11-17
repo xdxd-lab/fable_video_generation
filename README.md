@@ -112,4 +112,6 @@ docs/plan.md                   製作計畫、技術細節與踩過的坑
 - **可重現的算圖**：不用 Recorder，也不進 Play 模式。每個動畫都是時間的純函數，逐格 `Camera.Render()` 後把像素直接送進 ffmpeg，同樣的輸入永遠得到同樣的影片。
 - **觸控視覺**：觸控效果沿用 mtk-viewer 的風格，以圓點加上向外擴散的圓圈呈現。
 
+- **角色版本**：阿澄有 v1（目前預設）與 v2（精修版，審核中）。加上 `--character v2` 可改用新版，`scripts/character_sheet.sh star_city` 可輸出兩版並排的角色設定表。流程見 [`docs/character-pipeline.md`](docs/character-pipeline.md)。
+
 更多細節見 [`docs/plan.md`](docs/plan.md)。

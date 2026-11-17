@@ -13,7 +13,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
-public static class StoryBuilder
+public static partial class StoryBuilder
 {
     const int FPS = 30, UI = 5;
     const float IW = 1024f, IH = 576f;
@@ -191,10 +191,22 @@ public static class StoryBuilder
     }
 
     // ---------- the apprentice ----------
-    class Kid
+    // Kid is the character contract the shots use; KidV1 is the original flat figure, KidV2 (StoryBuilder.Apprentice.cs)
+    // the refined one. Both share the same local units: feet at origin, head centre (0,45), arm pivot (7.5,31), arm 16.5.
+    abstract class Kid
+    {
+        public abstract void Pose(Vector3 feetLocal, float scale, int facing, float walk = 0f, float armDeg = 0f, float sit = 0f, float tip = 0f);
+        public abstract Vector3 Hand(float reach = 0f);
+        public void Hide() => Pose(Vector3.zero, 0f, 1);
+    }
+    static string CharacterVersion => Environment.GetEnvironmentVariable("STORY_CHARACTER") ?? "v1";
+    static Kid NewKid(Transform parent) => CharacterVersion == "v2" ? (Kid)new KidV2(parent) : new KidV1(parent);
+    static float NowT;                  // current story time, for idle motion (blink, sway) inside Pose
+
+    class KidV1 : Kid
     {
         Transform root, upper, arm, legL, legR; Glow shadow; float armDeg, sitNow, scaleNow; int face = 1; Vector3 feet;
-        public Kid(Transform parent)
+        public KidV1(Transform parent)
         {
             shadow = new Glow(parent, Vector3.zero, 46, 11, 8, false);
             root = new GameObject("kid") { layer = UI }.transform; root.SetParent(parent, false);
@@ -220,7 +232,7 @@ public static class StoryBuilder
         static Transform Pivot(Transform p, float x, float y) { var t = new GameObject("pivot") { layer = UI }.transform; t.SetParent(p, false); t.localPosition = new Vector3(x, y); return t; }
 
         // feet: image-space position; walk: step phase; armDeg: 0 hangs down, 90 points forward; sit and tip in 0..1
-        public void Pose(Vector3 feetLocal, float scale, int facing, float walk = 0f, float armDeg = 0f, float sit = 0f, float tip = 0f)
+        public override void Pose(Vector3 feetLocal, float scale, int facing, float walk = 0f, float armDeg = 0f, float sit = 0f, float tip = 0f)
         {
             feet = feetLocal; face = facing; this.armDeg = armDeg; sitNow = sit; scaleNow = scale;
             root.gameObject.SetActive(scale > 0f); if (scale <= 0f) { shadow.Set(Color.black, 0f); return; }
@@ -232,12 +244,11 @@ public static class StoryBuilder
             arm.localRotation = Quaternion.Euler(0, 0, armDeg);
             shadow.At(feetLocal + new Vector3(0, -1f * scale)); shadow.Size(46 * scale, 11 * scale); shadow.Set(Color.black, 0.45f);
         }
-        public Vector3 Hand(float reach = 0f)
+        public override Vector3 Hand(float reach = 0f)
         {
             float a = armDeg * Mathf.Deg2Rad, len = 16.5f + reach;
             return feet + scaleNow * new Vector3(face * (7.5f + Mathf.Sin(a) * len), 31f - Mathf.Cos(a) * len - 9f * sitNow);
         }
-        public void Hide() => Pose(Vector3.zero, 0f, 1);
     }
 
     static Vector3 Along(Vector2[] p, float u)
@@ -269,7 +280,7 @@ public static class StoryBuilder
     static void ShotB()
     {
         var sc = sceneOf["B"] = MakeScene("B", 5, 36, 23); var sh = Sh("B");
-        var kid = new Kid(sc.root);
+        var kid = NewKid(sc.root);
         var spots = new[] { new Vector2(96, 452), new Vector2(62, 486), new Vector2(118, 498), new Vector2(40, 440) };
         var sparks = new Star[spots.Length]; for (int i = 0; i < spots.Length; i++) sparks[i] = new Star(sc.root, 34);
         anims.Add(t =>
@@ -292,7 +303,7 @@ public static class StoryBuilder
         var gates = new[] { new Vector2(606, 200), new Vector2(776, 236), new Vector2(848, 222), new Vector2(935, 240) };
         var warm = new Glow[gates.Length]; var dim = new Glow[gates.Length];
         for (int i = 0; i < gates.Length; i++) { warm[i] = new Glow(sc.root, Img(gates[i]), 70, 70, 30); dim[i] = new Glow(sc.root, Img(gates[i]), 96, 96, -50, false); }
-        var kid = new Kid(sc.root); var star = new Star(sc.root); var touch = new Glow(sc.root, Vector3.zero, 60, 60, 45);
+        var kid = NewKid(sc.root); var star = new Star(sc.root); var touch = new Glow(sc.root, Vector3.zero, 60, 60, 45);
         Vector3 ground = Img(292, 484), hover = Img(276, 458);
         anims.Add(t =>
         {
@@ -335,7 +346,7 @@ public static class StoryBuilder
         var gates = new[] { new Vector2(592, 238), new Vector2(460, 206), new Vector2(514, 184), new Vector2(775, 196), new Vector2(226, 186) };
         var warm = new Glow(sc.root, Img(gates[0]), 90, 90, 30); var dim = new Glow[gates.Length];
         for (int i = 0; i < gates.Length; i++) dim[i] = new Glow(sc.root, Img(gates[i]), i == 0 || i == 4 ? 120 : 84, i == 0 || i == 4 ? 120 : 84, -50, false);
-        var kid = new Kid(sc.root); var star = new Star(sc.root);
+        var kid = NewKid(sc.root); var star = new Star(sc.root);
         anims.Add(t =>
         {
             float u = U(t, sh.start, sh.end - sh.start), su = Smooth(u);
@@ -355,7 +366,7 @@ public static class StoryBuilder
     static void ShotF()
     {
         var sc = sceneOf["F"] = MakeScene("F", 3, 30, 71); var sh = Sh("F");
-        var kid = new Kid(sc.root); var star = new Star(sc.root);
+        var kid = NewKid(sc.root); var star = new Star(sc.root);
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
@@ -380,7 +391,7 @@ public static class StoryBuilder
         float[] rr = { 66f, 52f, 38f }, tiltAt = { 20f, -35f, 70f };
         for (int i = 0; i < 3; i++) { ringMesh[i] = new Mesh(); var r = Part(sc.root, ringMesh[i], Img(core), Gold, 33); ringMat[i] = r.sharedMaterial; ringT[i] = r.transform; }
         var trail = new Glow[10]; for (int i = 0; i < trail.Length; i++) trail[i] = new Glow(sc.root, Vector3.zero, 16, 16, 36);
-        var kid = new Kid(sc.root); var kid2 = new Kid(sc.root); var star = new Star(sc.root);
+        var kid = NewKid(sc.root); var kid2 = NewKid(sc.root); var star = new Star(sc.root);
         Vector3 seat = Img(350, 470), stairs0 = Img(716, 262), stairs1 = Img(748, 247);
         float tPlace = C(22) + 0.95f;
         anims.Add(t =>
@@ -451,7 +462,7 @@ public static class StoryBuilder
                             new Vector2(560, 372), new Vector2(660, 418), new Vector2(730, 462), new Vector2(790, 520) };
         var flow = new Glow[22]; for (int i = 0; i < flow.Length; i++) flow[i] = new Glow(sc.root, Vector3.zero, 44, 44, 30);
         var wash = new Glow(sc.root, Img(600, 380), 520, 300, 27);
-        var wink = new Star(sc.root, 44); var kid = new Kid(sc.root);
+        var wink = new Star(sc.root, 44); var kid = NewKid(sc.root);
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
@@ -488,10 +499,21 @@ public static class StoryBuilder
     {
         SetFormat(Environment.GetEnvironmentVariable("STORY_FORMAT"));
         Debug.Log($"[Story] format {(Wide ? "horizontal" : "vertical")} {W}x{H}");
+        Debug.Log("[Story] character " + CharacterVersion);
+        InitCommon();
+        TL = JsonUtility.FromJson<Timeline>(File.ReadAllText(Environment.GetEnvironmentVariable("STORY_TIMELINE"))); DUR = TL.duration;
+
+        ShotA(); ShotB(); ShotCD(); ShotE(); ShotF(); ShotGH(); ShotI();
+        BuildOverlays();
+    }
+
+    // Empty scene, shaders, font, glow texture and the orthographic camera sized to W x H.
+    static void InitCommon()
+    {
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         anims.Clear(); scenes.Clear(); sceneOf.Clear();
         ShaderUtil.allowAsyncCompilation = false;
-        TL = JsonUtility.FromJson<Timeline>(File.ReadAllText(Environment.GetEnvironmentVariable("STORY_TIMELINE"))); DUR = TL.duration;
+        LoadCharacterSpec();
         flat = Shader.Find("Sprites/Default");
         add = Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Mobile/Particles/Additive") ?? flat;
         Debug.Log("[Story] additive shader: " + add.name);
@@ -508,8 +530,10 @@ public static class StoryBuilder
         cam = new GameObject("Cam").AddComponent<Camera>();
         cam.orthographic = true; cam.orthographicSize = H / 2f; cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Night;
         cam.cullingMask = 1 << UI; cam.transform.position = new Vector3(0, 0, -500f); cam.nearClipPlane = 1f; cam.farClipPlane = 1000f; cam.enabled = false;
+    }
 
-        ShotA(); ShotB(); ShotCD(); ShotE(); ShotF(); ShotGH(); ShotI();
+    static void BuildOverlays()
+    {
 
         // Vertical: storybook panel under the picture with a soft edge. Horizontal: subtitles sit on the
         // picture, so only darken the bottom for legibility. Both get a slight darkening at the very top.
@@ -526,6 +550,7 @@ public static class StoryBuilder
 
     static void Apply(float t)
     {
+        NowT = t;
         Scene current = null; string id = null;
         foreach (var s in TL.shots) if (t >= s.start) { current = sceneOf[s.id]; id = s.id; }
         foreach (var s in scenes) s.root.gameObject.SetActive(s == current);

@@ -153,8 +153,10 @@ def main():
     ap.add_argument("step", nargs="?", default="all", choices=["all", "timeline", "render", "final"])
     ap.add_argument("-f", "--format", default="both", choices=[*FORMATS, "both"])
     ap.add_argument("--stills", help="comma-separated seconds; render step only, writes PNGs instead of video")
+    ap.add_argument("--character", default="v1", choices=["v1", "v2"], help="apprentice design (v2 = refined, under review)")
     a = ap.parse_args()
     os.chdir(ROOT)
+    os.environ["STORY_CHARACTER"] = a.character
     NAME = a.name
     SDIR, OUT = ROOT / "stories" / NAME, ROOT / "output" / NAME
     S = json.loads((SDIR / "story.json").read_text(encoding="utf-8"))
