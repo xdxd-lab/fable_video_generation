@@ -1,6 +1,7 @@
 {
   "title": "星辰城的小星星",
-  "spec": {"fps": 30, "duration": 60.0, "voice": "Meijia"},
+  "spec": {"fps": 30, "duration": 60.0, "voice": "Meijia",
+           "music": {"file": "stories/star_city/music/alone_with_the_stars.flac", "start": 0.0, "bed": -27.0, "title": "Alone with the Stars", "author": "Tsorthan Grove", "license": "CC0", "source": "https://opengameart.org/content/alone-with-the-stars"}},
   "shots": {
     "A": {"image": 1, "visual": "環狀行星與星辰城全景，鏡頭緩慢右移，片名浮現"},
     "B": {"image": 5, "visual": "阿澄在前景岩石上擦亮紫水晶，水晶閃出星芒"},

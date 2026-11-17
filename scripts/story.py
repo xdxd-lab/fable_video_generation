@@ -4,6 +4,7 @@
   python3 scripts/story.py <name>                      everything, both formats
   python3 scripts/story.py <name> all -f horizontal    everything, one format
   python3 scripts/story.py <name> timeline             output/<name>/narration.wav + timeline.json
+  python3 scripts/story.py <name> mix                  output/<name>/mix.wav (narration + ducked music, if spec.music)
   python3 scripts/story.py <name> render -f vertical   output/<name>/vertical/unity_render.mp4
   python3 scripts/story.py <name> render -f vertical --stills 3,20
   python3 scripts/story.py <name> final -f vertical    output/<name>/vertical/final.mp4
@@ -85,6 +86,46 @@ def timeline():
     for s in shots: print(f"  {s['id']}  {s['start']:6.2f} - {s['end']:6.2f}")
 
 
+def lufs_stats(path, af=""):
+    """Integrated loudness etc. from ffmpeg's loudnorm analysis pass."""
+    o = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-af",
+                        (af + "," if af else "") + "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
+                        "-f", "null", "-"], check=True, capture_output=True, text=True).stderr
+    return json.loads(o[o.rindex("{"):o.rindex("}") + 1])
+
+
+def mix():
+    """Narration over a music bed that ducks under the voice, mastered to -14 LUFS / -1.5 dBTP.
+    spec.music: {"file", "start" (s into track), "bed" (LUFS of the bed before ducking), ...credits}.
+    Without spec.music the mix is the narration alone."""
+    narr, out = OUT / "narration.wav", OUT / "mix.wav"
+    if not narr.exists():
+        sys.exit("narration.wav missing; run the timeline step first")
+    m = SPEC.get("music")
+    if not m:
+        run("cp", narr, out); print(out, "(no music)"); return out
+    src, start, bed = ROOT / m["file"], m.get("start", 0.0), m.get("bed", -27.0)
+    fade_in, fade_out = m.get("fade_in", 1.5), m.get("fade_out", 3.0)
+    seg = f"atrim={start}:{start + DUR},asetpts=PTS-STARTPTS,aresample=48000"
+    gain = bed - float(lufs_stats(src, seg)["input_i"])
+    music = (f"[1:a]{seg},aformat=channel_layouts=stereo,volume={gain:.2f}dB,"
+             f"afade=t=in:d={fade_in},afade=t=out:st={DUR - fade_out}:d={fade_out}[m]")
+    # duck about 8 dB while the narration speaks; slow release so the bed swells back between lines
+    duck = ("[0:a]asplit[v][sc];[m][sc]sidechaincompress=threshold=0.05:ratio=2.5:attack=40:release=700[md];"
+            "[v][md]amix=inputs=2:normalize=0[pre]")
+    pre = OUT / "mix_pre.wav"
+    run("ffmpeg", "-v", "error", "-y", "-i", narr, "-i", src, "-filter_complex", f"{music};{duck}",
+        "-map", "[pre]", "-ar", "48000", "-ac", "2", "-t", DUR, pre)
+    st = lufs_stats(pre)   # second loudnorm pass in linear mode keeps the dynamics, just sets the level
+    run("ffmpeg", "-v", "error", "-y", "-i", pre, "-af",
+        f"loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I={st['input_i']}:measured_TP={st['input_tp']}"
+        f":measured_LRA={st['input_lra']}:measured_thresh={st['input_thresh']}:offset={st['target_offset']},apad=whole_dur={DUR}",
+        "-ar", "48000", "-ac", "2", "-t", DUR, out)
+    pre.unlink()
+    print(out, f"music gain {gain:+.1f} dB -> bed {bed} LUFS")
+    return out
+
+
 def ts(t):
     return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
 
@@ -138,8 +179,11 @@ def final(fmt):
         sys.exit(f"{video} missing; run the render step first")
     cues = json.loads((OUT / "timeline.json").read_text(encoding="utf-8"))["cues"]
     ass = subtitles(cues, fmt).relative_to(ROOT)
+    audio = OUT / "mix.wav"
+    if not audio.exists():
+        audio = mix()
     out = OUT / fmt / "final.mp4"
-    run("ffmpeg", "-v", "error", "-y", "-i", video, "-i", OUT / "narration.wav",
+    run("ffmpeg", "-v", "error", "-y", "-i", video, "-i", audio,
         "-filter_complex", f"[0:v]subtitles={ass}[v]", "-map", "[v]", "-map", "1:a", "-t", DUR, "-r", FPS,
         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", out)
@@ -150,7 +194,7 @@ def main():
     global NAME, SDIR, OUT, S, SPEC, CUES, FPS, DUR
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("name")
-    ap.add_argument("step", nargs="?", default="all", choices=["all", "timeline", "render", "final"])
+    ap.add_argument("step", nargs="?", default="all", choices=["all", "timeline", "mix", "render", "final"])
     ap.add_argument("-f", "--format", default="both", choices=[*FORMATS, "both"])
     ap.add_argument("--stills", help="comma-separated seconds; render step only, writes PNGs instead of video")
     ap.add_argument("--character", default="v1", choices=["v1", "v2"], help="apprentice design (v2 = refined, under review)")
@@ -165,6 +209,8 @@ def main():
     fmts = list(FORMATS) if a.format == "both" else [a.format]
     if a.step in ("all", "timeline"):
         timeline()
+    if a.step in ("all", "mix") and not a.stills:
+        mix()
     for f in fmts:
         if a.step in ("all", "render"):
             render(f, a.stills)

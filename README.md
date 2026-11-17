@@ -63,6 +63,7 @@ python3 scripts/story.py star_city                    # 等同 all，兩種格�
 python3 scripts/story.py star_city all -f horizontal  # 全流程，只做橫式
 python3 scripts/story.py star_city timeline           # 只合成旁白並排時間軸（兩種格式共用）
 python3 scripts/story.py star_city render -f vertical # 只做 Unity 算圖
+python3 scripts/story.py star_city mix                # 只混音：旁白＋配樂（兩種格式共用）
 python3 scripts/story.py star_city final -f vertical  # 只做字幕與合成
 ```
 
@@ -77,6 +78,7 @@ python3 scripts/story.py star_city render -f vertical --stills 3,20
 ```
 output/star_city/narration.wav
 output/star_city/timeline.json
+output/star_city/mix.wav                     旁白＋配樂混音（成品使用的音軌）
 output/star_city/<format>/unity_render.mp4   Unity 算圖（無字幕、無聲）
 output/star_city/<format>/subtitles.ass
 output/star_city/<format>/final.mp4          成品
@@ -115,3 +117,9 @@ docs/plan.md                   製作計畫、技術細節與踩過的坑
 - **角色版本**：阿澄有 v1（目前預設）與 v2（精修版，審核中）。加上 `--character v2` 可改用新版，`scripts/character_sheet.sh star_city` 可輸出兩版並排的角色設定表。流程見 [`docs/character-pipeline.md`](docs/character-pipeline.md)。
 
 更多細節見 [`docs/plan.md`](docs/plan.md)。
+
+## 配樂 / Music
+
+故事短片的配樂為 “Alone with the Stars”，作者 Tsorthan Grove，授權 CC0（公有領域貢獻，不需標示出處，仍在此致謝）。來源：<https://opengameart.org/content/alone-with-the-stars>
+
+Music: "Alone with the Stars" by Tsorthan Grove, CC0 (no attribution required, credited anyway).

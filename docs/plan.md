@@ -51,3 +51,8 @@
 - 30 秒流程介紹（`script.json`、`scripts/build.py`、`scripts/unity_render.sh`、`ReelBuilder.cs`）仍只有直式，未改動
 - `story.json` 不再有 width/height（由格式決定尺寸），保留 fps、duration、voice
 - `scripts/banner.py` 改取 `output/star_city/horizontal/final.mp4`（t=49.8）當 16:9 螢幕、`output/star_city/vertical/final.mp4`（t=22）當 9:16 手機，須先跑過 story.py。輸出 `docs/banner/banner.png` 與 `social-preview.jpg`（JPEG，因 GitHub 社群預覽上限 1 MB），重新產生後要在 GitHub Settings 手動重新上傳
+
+## 配樂（2026-11-18）
+- 選曲順序：1. Alone with the Stars（Tsorthan Grove）、2. Snow Globe (expanded)（Bobjt）、3. Dreams of Utopian Clouds（Tsorthan Grove）。三首皆已在 OpenGameArt 原始頁面用 Chrome 確認為 CC0；最終採用第 1 首，檔案放 `stories/star_city/music/alone_with_the_stars.flac`
+- 混音設計（`story.py` 的 `mix` 步驟，輸出 `output/star_city/mix.wav`，`final` 改為合成它）：配樂底床在壓低前約 -27 LUFS；以旁白為 sidechain 壓低配樂，說話時約低 8.7 dB；淡入 1.5 秒、淡出 3 秒；最後兩段式 loudnorm（linear）母帶處理到 -14 LUFS／-1.5 dBTP
+- 由 `story.json` 的 `spec.music` 驅動；省略 `spec.music` 就只有旁白，不加配樂
