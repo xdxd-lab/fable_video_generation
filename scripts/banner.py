@@ -7,7 +7,7 @@ Inputs : stories/star_city/refs_2x/Image_1.png (background)
          stories/star_city/refs_2x/Image_6.png (16:9 screen)
          output/star_city/final.mp4            (9:16 phone screen; run the story pipeline first)
 Outputs: docs/banner/banner.png          2560x1280 (README)
-         docs/banner/social-preview.png  1280x640  (GitHub Settings > Social preview)
+         docs/banner/social-preview.jpg  1280x640  (GitHub Settings > Social preview)
 
 All text and layout live in the constants below, so the banner can be restyled
 without touching the ffmpeg graph.
@@ -200,7 +200,7 @@ def main():
                         "-ss", str(SCREEN_TIME), "-i", str(SCREEN_VIDEO),
                         "-filter_complex", graph,
                         "-map", "[a]", "-frames:v", "1", str(out / "banner.png"),
-                        "-map", "[s]", "-frames:v", "1", str(out / "social-preview.png")], check=True)
+                        "-map", "[s]", "-frames:v", "1", "-q:v", "2", str(out / "social-preview.jpg")], check=True)
     print(out / "banner.png")
 
 

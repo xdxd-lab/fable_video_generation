@@ -67,7 +67,7 @@ python3 scripts/story.py star_city final output/star_city/unity_render.mp4
 python3 scripts/banner.py
 ```
 
-輸出 `docs/banner/banner.png`（README 用，2560×1280）與 `docs/banner/social-preview.png`（GitHub 社群預覽圖，1280×640）。文字與版面都集中在腳本開頭的常數，修改後重跑即可。需要先產生故事短片，因為手機畫面取自其中一格。
+輸出 `docs/banner/banner.png`（README 用，2560×1280）與 `docs/banner/social-preview.jpg`（GitHub 社群預覽圖，1280×640）。文字與版面都集中在腳本開頭的常數，修改後重跑即可。需要先產生故事短片，因為手機畫面取自其中一格。
 
 ## 專案結構
 
