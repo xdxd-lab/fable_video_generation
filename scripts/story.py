@@ -34,6 +34,12 @@ def dur(path):
     return float(o.stdout.strip())
 
 
+def pad_to(src, dst):
+    """Pad/trim audio to exactly DUR. Done in its own ffmpeg run: after loudnorm in the same graph,
+    apad/atrim still leave the file ~94 ms short."""
+    run("ffmpeg", "-v", "error", "-y", "-i", src, "-af", f"apad=whole_dur={DUR},atrim=0:{DUR}", dst)
+
+
 def timeline():
     adir = OUT / "audio"; adir.mkdir(parents=True, exist_ok=True)
     raw = []
@@ -79,9 +85,10 @@ def timeline():
         ins += ["-i", adir / f"cue{i:02d}.wav"]
         flt.append(f"[{i}:a]aresample=48000,atempo={tempo:.5f},adelay={int(c['start'] * 1000)}:all=1[a{i}]")
         lab.append(f"[a{i}]")
-    flt.append(f"{''.join(lab)}amix=inputs={len(cues)}:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11,apad,atrim=0:{DUR}[out]")
+    flt.append(f"{''.join(lab)}amix=inputs={len(cues)}:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[out]")
     run("ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", ";".join(flt), "-map", "[out]",
-        "-ar", "48000", "-ac", "2", OUT / "narration.wav")
+        "-ar", "48000", "-ac", "2", OUT / "narration_raw.wav")
+    pad_to(OUT / "narration_raw.wav", OUT / "narration.wav"); (OUT / "narration_raw.wav").unlink()
     print(f"tempo {tempo:.3f}  pause stretch {stretch:.2f}  last cue ends {cues[-1]['end']:.2f}s")
     for s in shots: print(f"  {s['id']}  {s['start']:6.2f} - {s['end']:6.2f}")
 
@@ -96,22 +103,24 @@ def lufs_stats(path, af=""):
 
 def mix():
     """Narration over a music bed that ducks under the voice, mastered to -14 LUFS / -1.5 dBTP.
-    spec.music: {"file", "start" (s into track), "bed" (LUFS of the bed before ducking), ...credits}.
+    spec.music: {"file", "start" (s into track), "bed" (LUFS of the bed before ducking), "duck_ratio", ...credits}.
     Without spec.music the mix is the narration alone."""
     narr, out = OUT / "narration.wav", OUT / "mix.wav"
     if not narr.exists():
         sys.exit("narration.wav missing; run the timeline step first")
     m = SPEC.get("music")
     if not m:
-        run("cp", narr, out); print(out, "(no music)"); return out
+        pad_to(narr, out); print(out, "(no music)"); return out
     src, start, bed = ROOT / m["file"], m.get("start", 0.0), m.get("bed", -27.0)
     fade_in, fade_out = m.get("fade_in", 1.5), m.get("fade_out", 3.0)
+    duck_ratio = m.get("duck_ratio", 2.5)
     seg = f"atrim={start}:{start + DUR},asetpts=PTS-STARTPTS,aresample=48000"
     gain = bed - float(lufs_stats(src, seg)["input_i"])
     music = (f"[1:a]{seg},aformat=channel_layouts=stereo,volume={gain:.2f}dB,"
              f"afade=t=in:d={fade_in},afade=t=out:st={DUR - fade_out}:d={fade_out}[m]")
-    # duck about 8 dB while the narration speaks; slow release so the bed swells back between lines
-    duck = ("[0:a]asplit[v][sc];[m][sc]sidechaincompress=threshold=0.05:ratio=2.5:attack=40:release=700[md];"
+    # duck under the voice (ratio 2.5 ~ 8.7 dB, 1.6 ~ 5 dB); slow release so the bed swells back between lines
+    duck = ("[0:a]asplit[v][sc];"
+            f"[m][sc]sidechaincompress=threshold=0.05:ratio={duck_ratio}:attack=40:release=700[md];"
             "[v][md]amix=inputs=2:normalize=0[pre]")
     pre = OUT / "mix_pre.wav"
     run("ffmpeg", "-v", "error", "-y", "-i", narr, "-i", src, "-filter_complex", f"{music};{duck}",
@@ -119,9 +128,10 @@ def mix():
     st = lufs_stats(pre)   # second loudnorm pass in linear mode keeps the dynamics, just sets the level
     run("ffmpeg", "-v", "error", "-y", "-i", pre, "-af",
         f"loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I={st['input_i']}:measured_TP={st['input_tp']}"
-        f":measured_LRA={st['input_lra']}:measured_thresh={st['input_thresh']}:offset={st['target_offset']},apad=whole_dur={DUR}",
-        "-ar", "48000", "-ac", "2", "-t", DUR, out)
-    pre.unlink()
+        f":measured_LRA={st['input_lra']}:measured_thresh={st['input_thresh']}:offset={st['target_offset']}",
+        "-ar", "48000", "-ac", "2", pre.with_name("mix_ln.wav"))
+    pad_to(pre.with_name("mix_ln.wav"), out)
+    pre.unlink(); pre.with_name("mix_ln.wav").unlink()
     print(out, f"music gain {gain:+.1f} dB -> bed {bed} LUFS")
     return out
 

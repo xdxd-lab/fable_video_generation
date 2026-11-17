@@ -54,5 +54,7 @@
 
 ## 配樂（2026-11-18）
 - 選曲順序：1. Alone with the Stars（Tsorthan Grove）、2. Snow Globe (expanded)（Bobjt）、3. Dreams of Utopian Clouds（Tsorthan Grove）。三首皆已在 OpenGameArt 原始頁面用 Chrome 確認為 CC0；最終採用第 1 首，檔案放 `stories/star_city/music/alone_with_the_stars.flac`
-- 混音設計（`story.py` 的 `mix` 步驟，輸出 `output/star_city/mix.wav`，`final` 改為合成它）：配樂底床在壓低前約 -27 LUFS；以旁白為 sidechain 壓低配樂，說話時約低 8.7 dB；淡入 1.5 秒、淡出 3 秒；最後兩段式 loudnorm（linear）母帶處理到 -14 LUFS／-1.5 dBTP
+- 混音設計（`story.py` 的 `mix` 步驟，輸出 `output/star_city/mix.wav`，`final` 改為合成它）：配樂底床在壓低前 -18 LUFS（`bed`）；以旁白為 sidechain 壓低配樂（`duck_ratio` 1.4），說話時約低 4.2 dB，配樂約在旁白下 9 dB；淡入 1.5 秒、淡出 3 秒；最後兩段式 loudnorm（linear）母帶處理到 -14 LUFS／-1.5 dBTP
 - 由 `story.json` 的 `spec.music` 驅動；省略 `spec.music` 就只有旁白，不加配樂
+- 第一版 bed -27、ratio 2.5 時配樂在旁白下約 23 dB，使用者試聽幾乎聽不到；旁白佔全片 83%，所以「旁白下的配樂音量」才是決定性的指標，背景配樂一般抓在旁白下 9–12 dB
+- loudnorm 之後在同一個濾鏡鏈接 apad/atrim 仍會短約 94 ms，改用獨立的 ffmpeg 步驟補滿到片長（`pad_to`）
