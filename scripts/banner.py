@@ -4,7 +4,8 @@
     python3 scripts/banner.py
 
 Inputs : stories/star_city/refs_2x/Image_1.png (background)
-         output/star_city/final.mp4            (phone screen frame; run the story pipeline first)
+         stories/star_city/refs_2x/Image_6.png (16:9 screen)
+         output/star_city/final.mp4            (9:16 phone screen; run the story pipeline first)
 Outputs: docs/banner/banner.png          2560x1280 (README)
          docs/banner/social-preview.png  1280x640  (GitHub Settings > Social preview)
 
@@ -21,20 +22,26 @@ FFMPEG = shutil.which("ffmpeg") or str(Path.home() / ".local/bin/ffmpeg")
 W, H = 2560, 1280
 
 BG = ROOT / "stories/star_city/refs_2x/Image_1.png"
+WIDE_IMAGE = ROOT / "stories/star_city/refs_2x/Image_6.png"
+WIDE_CUE = ("阿澄爬上階梯，踮起腳，", "Cheng climbed the steps, stood on tiptoe,")
 SCREEN_VIDEO = ROOT / "output/star_city/final.mp4"
 SCREEN_TIME = 22.0                 # star touching Cheng's fingertip
 
-EYEBROW = "FABLE 5.2  ×  UNITY 6.3"
-TITLE = ["Fable Video", "Generation"]
+EYEBROW = "CLAUDE  ×  UNITY"
+TITLE = ["Unity Video", "Generation"]
 TAGLINE_ZH = "AI 寫腳本、Unity 算圖，自動產出雙語短影音"
-TAGLINE_EN = "From script and narration to a Reels-ready vertical video"
-PILLS = ["1080×1920", "30 fps", "中英雙語字幕", "Reels Ready"]
+TAGLINE_EN = "From script and narration to vertical and horizontal videos"
+PILLS = ["橫式 16:9", "直式 9:16", "中英雙語字幕", "30 fps"]
 
-# phone mockup (2x canvas pixels)
-PHONE_H = 1040
+# devices (2x canvas pixels): 16:9 screen behind, 9:16 phone in front
+WIDE_W = 880
+WIDE_H = round(WIDE_W * 9 / 16)
+WIDE_X, WIDE_Y = 1560, 170
+WIDE_R = 18
+PHONE_H = 840
 PHONE_W = round(PHONE_H * 1080 / 1920)
-PHONE_X, PHONE_Y = 1700, 120
-SCREEN_R = 46                     # screen corner radius
+PHONE_X, PHONE_Y = 1300, 330
+PHONE_R = 40
 TOUCH = (500, 800)                # touch point in 1080x1920 frame coords
 TOUCH_RGB = "FAC85A"              # ASS colours are BGR: this is #5AC8FA
 
@@ -62,11 +69,11 @@ def text_width(s, size):
     return sum(size * (1.0 if ord(c) > 0x2E80 else 0.56) for c in s)
 
 
-def ass(events):
+def ass(events, w=W, h=H):
     head = f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: {W}
-PlayResY: {H}
+PlayResX: {w}
+PlayResY: {h}
 WrapStyle: 2
 ScaledBorderAndShadow: yes
 
@@ -80,29 +87,62 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return head + "".join(f"Dialogue: {l},0:00:00.00,0:00:01.00,D,,0,0,0,,{t}\n" for l, t in events)
 
 
-def back_layer():
-    """Drawn under the phone: glow and bezel."""
-    cx, cy = PHONE_X + PHONE_W / 2, PHONE_Y + PHONE_H / 2
-    pad = 16
+def wide_subtitles():
+    """Bilingual subtitle burned into the 1920x1080 landscape screen."""
+    zh, en = WIDE_CUE
     return [
-        (0, r"{\an7\pos(0,0)\bord0\blur90\1c&HF2A04A&\1a&H70&\p1}" + circle(cx, cy, 520)),
-        (1, r"{\an7\pos(0,0)\bord0\blur60\1c&HE0589A&\1a&H90&\p1}" + circle(cx - 260, cy + 280, 300)),
-        (2, r"{\an7\pos(0,0)\bord3\blur1\1c&H1A0E0B&\3c&H6E5048&\3a&H30&\p1}"
-            + rrect(PHONE_X - pad, PHONE_Y - pad, PHONE_W + 2 * pad, PHONE_H + 2 * pad, SCREEN_R + pad)),
+        (0, r"{\an7\pos(0,0)\bord0\blur60\1c&H0A0507&\1a&H50&\p1}" + rrect(-100, 860, 2120, 400, 0)),
+        (0, rf"{{\an2\pos(960,950)\fn{ZH_FONT}\fs64\b1\bord4\shad2\3c&H201008&\1c&HFFFFFF&}}{zh}"),
+        (0, rf"{{\an2\pos(960,1020)\fn{EN_FONT}\fs38\i1\bord3\shad1\3c&H201008&\1c&HD2DCE8&}}{en}"),
+    ]
+
+
+def bezel(x, y, w, h, r, pad):
+    return (r"{\an7\pos(0,0)\bord3\blur1\1c&H1A0E0B&\3c&H6E5048&\3a&H30&\p1}"
+            + rrect(x - pad, y - pad, w + 2 * pad, h + 2 * pad, r + pad))
+
+
+def back_layer():
+    """Drawn under the landscape screen: its glow and bezel."""
+    cx, cy = WIDE_X + WIDE_W / 2, WIDE_Y + WIDE_H / 2
+    return [
+        (0, r"{\an7\pos(0,0)\bord0\blur90\1c&HF2A04A&\1a&H70&\p1}" + circle(cx, cy, 460)),
+        (1, bezel(WIDE_X, WIDE_Y, WIDE_W, WIDE_H, WIDE_R, 14)),
+    ]
+
+
+def mid_layer():
+    """Drawn over the landscape screen, under the phone: phone glow and bezel."""
+    cx, cy = PHONE_X + PHONE_W / 2, PHONE_Y + PHONE_H / 2
+    return [
+        (0, r"{\an7\pos(0,0)\bord0\blur70\1c&HE0589A&\1a&H90&\p1}" + circle(cx, cy + 120, 330)),
+        (0, r"{\an7\pos(0,0)\bord0\blur30\1c&H000000&\1a&H60&\p1}"
+            + rrect(PHONE_X + 30, PHONE_Y + 40, PHONE_W, PHONE_H, PHONE_R)),
+        (1, bezel(PHONE_X, PHONE_Y, PHONE_W, PHONE_H, PHONE_R, 14)),
+    ]
+
+
+def chip(x, y, label, anchor_right=False):
+    size, padx, h = 28, 18, 46
+    w = text_width(label, size) + 2 * padx
+    if anchor_right:
+        x -= w
+    return [
+        (5, rf"{{\an7\pos(0,0)\bord0\1c&HFFD38F&\1a&H10&\p1}}" + rrect(x, y, w, h, 10)),
+        (6, rf"{{\an5\pos({x + w / 2},{y + h / 2})\fn{EN_FONT}\fs{size}\b1\1c&H1A0E0B&}}{label}"),
     ]
 
 
 def front_layer():
-    """Drawn over everything: copy, pills, touch rings."""
+    """Drawn over everything: copy, pills, format chips, touch rings."""
     x = 170
     ev = [
+        (5, rf"{{\an7\pos(0,0)\bord0\1c&HFFD38F&\p1}}" + rrect(x, 262, 120, 8, 4)),
         (5, rf"{{\an7\pos({x},300)\fn{EN_FONT}\fs40\b1\fsp9\1c&HFFD38F&}}{EYEBROW}"),
-        (5, rf"{{\an7\pos({x - 8},360)\fn{EN_FONT}\fs168\b1\fsp-3\1c&HFFFFFF&\shad0\bord0}}{TITLE[0]}"),
-        (5, rf"{{\an7\pos({x - 8},540)\fn{EN_FONT}\fs168\b1\fsp-3\1c&HFFFFFF&\shad0\bord0}}{TITLE[1]}"),
+        (5, rf"{{\an7\pos({x - 8},360)\fn{EN_FONT}\fs168\b1\fsp-3\1c&HFFFFFF&}}{TITLE[0]}"),
+        (5, rf"{{\an7\pos({x - 8},540)\fn{EN_FONT}\fs168\b1\fsp-3\1c&HFFFFFF&}}{TITLE[1]}"),
         (5, rf"{{\an7\pos({x},770)\fn{ZH_FONT}\fs60\b1\1c&HF5E6E8&}}{TAGLINE_ZH}"),
         (5, rf"{{\an7\pos({x},858)\fn{EN_FONT}\fs38\i1\1c&HC8B4B0&}}{TAGLINE_EN}"),
-        # accent rule
-        (5, rf"{{\an7\pos(0,0)\bord0\1c&HFFD38F&\p1}}" + rrect(x, 262, 120, 8, 4)),
     ]
     px, py, size, padx, h = x, 990, 36, 30, 72
     for label in PILLS:
@@ -111,14 +151,26 @@ def front_layer():
         font = ZH_FONT if any(ord(c) > 0x2E80 for c in label) else EN_FONT
         ev.append((6, rf"{{\an5\pos({px + w / 2},{py + h / 2})\fn{font}\fs{size}\b1\1c&HFFFFFF&}}{label}"))
         px += w + 22
+    ev += chip(WIDE_X + WIDE_W, WIDE_Y + WIDE_H + 34, "16:9", anchor_right=True)
+    ev += chip(PHONE_X + PHONE_W + 34, PHONE_Y + PHONE_H - 46, "9:16")
     # mtk-viewer style touch: dot plus expanding rings
     s = PHONE_H / 1920
     tx, ty = PHONE_X + TOUCH[0] * s, PHONE_Y + TOUCH[1] * s
-    for r, a in ((70, "40"), (120, "88"), (170, "C0")):
+    for r, a in ((60, "40"), (105, "88"), (150, "C0")):
         ev.append((7, rf"{{\an7\pos(0,0)\bord5\1a&HFF&\3c&H{TOUCH_RGB}&\3a&H{a}&\p1}}" + circle(tx, ty, r)))
-    ev.append((7, rf"{{\an7\pos(0,0)\bord0\blur2\1c&H{TOUCH_RGB}&\1a&H30&\p1}}" + circle(tx, ty, 26)))
-    ev.append((8, rf"{{\an5\pos({tx},{ty})\fn{EN_FONT}\fs30\b1\1c&HFFFFFF&}}1"))
+    ev.append((7, rf"{{\an7\pos(0,0)\bord0\blur2\1c&H{TOUCH_RGB}&\1a&H30&\p1}}" + circle(tx, ty, 24)))
+    ev.append((8, rf"{{\an5\pos({tx},{ty})\fn{EN_FONT}\fs28\b1\1c&HFFFFFF&}}1"))
     return ev
+
+
+def round_alpha(r):
+    return (f"if(lte(pow(max(max({r}-X\\,X-(W-1-{r}))\\,0)\\,2)"
+            f"+pow(max(max({r}-Y\\,Y-(H-1-{r}))\\,0)\\,2)\\,{r * r})\\,255\\,0)")
+
+
+def rounded(label_in, w, h, r, label_out):
+    return (f"[{label_in}]scale={w}:{h}:flags=lanczos,format=rgba,"
+            f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='{round_alpha(r)}'[{label_out}];")
 
 
 def main():
@@ -126,24 +178,25 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        back, front = tmp / "back.ass", tmp / "front.ass"
-        back.write_text(ass(back_layer()), encoding="utf-8")
-        front.write_text(ass(front_layer()), encoding="utf-8")
-        r = SCREEN_R
-        round_alpha = (f"if(lte(pow(max(max({r}-X\\,X-(W-1-{r}))\\,0)\\,2)"
-                       f"+pow(max(max({r}-Y\\,Y-(H-1-{r}))\\,0)\\,2)\\,{r * r})\\,255\\,0)")
-        # left-to-right shade: dark under the copy, light over the phone
+        files = {}
+        for name, ev, size in (("wide", wide_subtitles(), (1920, 1080)), ("back", back_layer(), (W, H)),
+                               ("mid", mid_layer(), (W, H)), ("front", front_layer(), (W, H))):
+            files[name] = tmp / f"{name}.ass"
+            files[name].write_text(ass(ev, *size), encoding="utf-8")
+        # left-to-right shade: dark under the copy, lighter behind the devices
         shade = "255*(0.42+0.50*(1-clip((X/W-0.28)/0.34\\,0\\,1)))+40*pow(Y/H\\,3)"
         graph = (
             f"[0:v]scale={W}:-1,crop={W}:{H}:0:(ih-{H})*0.45,format=rgba[bg];"
             f"color=c=0x070A1A:s={W}x{H},format=rgba,geq=r=7:g=10:b=26:a='clip({shade}\\,0\\,255)'[sh];"
-            f"[bg][sh]overlay[b1];[b1]subtitles={back}[b2];"
-            f"[1:v]scale={PHONE_W}:{PHONE_H}:flags=lanczos,format=rgba,"
-            f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='{round_alpha}'[ph];"
-            f"[b2][ph]overlay={PHONE_X}:{PHONE_Y}[b3];[b3]subtitles={front},format=rgb24[o];"
-            f"[o]split[a][b];[b]scale=1280:640:flags=lanczos[s]"
+            f"[bg][sh]overlay,subtitles={files['back']}[b1];"
+            f"[1:v]scale=1920:1080:flags=lanczos,subtitles={files['wide']}[w0];"
+            + rounded("w0", WIDE_W, WIDE_H, WIDE_R, "wide")
+            + f"[b1][wide]overlay={WIDE_X}:{WIDE_Y},subtitles={files['mid']}[b2];"
+            + rounded("2:v", PHONE_W, PHONE_H, PHONE_R, "ph")
+            + f"[b2][ph]overlay={PHONE_X}:{PHONE_Y},subtitles={files['front']},format=rgb24,split[a][b];"
+            f"[b]scale=1280:640:flags=lanczos[s]"
         )
-        subprocess.run([FFMPEG, "-v", "error", "-y", "-i", str(BG),
+        subprocess.run([FFMPEG, "-v", "error", "-y", "-i", str(BG), "-i", str(WIDE_IMAGE),
                         "-ss", str(SCREEN_TIME), "-i", str(SCREEN_VIDEO),
                         "-filter_complex", graph,
                         "-map", "[a]", "-frames:v", "1", str(out / "banner.png"),

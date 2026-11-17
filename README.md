@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="docs/banner/banner.png" alt="Fable Video Generation: AI 寫腳本、Unity 算圖，自動產出雙語短影音" width="100%">
+  <img src="docs/banner/banner.png" alt="Unity Video Generation: Claude × Unity，AI 寫腳本、Unity 算圖，自動產出雙語短影音" width="100%">
 </p>
 
-# Fable Video Generation
+# Unity Video Generation
 
-用 Claude Fable 5.2 寫腳本與程式、Unity 6.3 逐格算圖、ffmpeg 合成旁白與字幕，產出可直接上傳 Instagram Reels 的直式短影音。
+Claude × Unity：用 Claude 寫腳本與程式、Unity 逐格算圖、ffmpeg 合成旁白與字幕，產出雙語短影音。目標同時涵蓋直式（9:16，例如 Instagram Reels）與橫式（16:9）；目前已完成的影片都是直式 1080×1920，橫式輸出尚在規劃中、還沒實作。
 
-A pipeline that turns a written script into a vertical, bilingual (zh-TW / EN) short video: AI-written script and code, Unity rendering, ffmpeg for narration and subtitles.
+A pipeline that turns a written script into a bilingual (zh-TW / EN) short video: AI-written script and code, Unity rendering, ffmpeg for narration and subtitles. Built for both vertical (9:16) and horizontal (16:9) video; the videos produced so far are vertical, and horizontal output is planned but not implemented yet.
 
 > [!IMPORTANT]
 > **請先安裝 [Git LFS](https://git-lfs.com/) 再複製本專案。**
@@ -15,7 +15,7 @@ A pipeline that turns a written script into a vertical, bilingual (zh-TW / EN) s
 > ```sh
 > brew install git-lfs      # 或從 https://git-lfs.com/ 下載
 > git lfs install
-> git clone https://github.com/xdxd-lab/fable_video_generation.git
+> git clone https://github.com/xdxd-lab/unity_video_generation.git
 > ```
 >
 > 如果已經先複製了，安裝 Git LFS 後在專案內執行 `git lfs pull` 即可補回檔案。
@@ -24,15 +24,15 @@ A pipeline that turns a written script into a vertical, bilingual (zh-TW / EN) s
 
 | 影片 | 長度 | 內容 |
 | --- | --- | --- |
-| 流程介紹 | 30 秒 | 介紹「Fable 5.2 + Unity → 短影音 → 上傳 Reels」的流程 |
+| 流程介紹 | 30 秒 | 介紹「Claude + Unity → 短影音 → 上傳 Reels」的流程（內容中提到的工具版本為製作當時的版本） |
 | 星辰城的小星星 | 60 秒 | 學徒阿澄與一顆迷路藍色小星星的故事，以六張場景圖為舞台 |
 
-輸出規格：1080×1920、30 fps、H.264 + AAC、響度 -14 LUFS，中文字幕為主、英文字幕並列。成品影片不放進儲存庫，請依下方步驟自行產生。
+目前輸出規格（直式）：1080×1920、30 fps、H.264 + AAC、響度 -14 LUFS，中文字幕為主、英文字幕並列。成品影片不放進儲存庫，請依下方步驟自行產生。
 
 ## 需要的軟體
 
 - macOS（旁白使用系統內建的 `say` 與台灣中文語音 Meijia）
-- Unity 6000.3 LTS，並已在 Unity Hub 登入、取得授權
+- Unity 6000.3 LTS（已測試版本），並已在 Unity Hub 登入、取得授權
 - ffmpeg（需含 libx264 與 libass）
 - Python 3
 - Git LFS

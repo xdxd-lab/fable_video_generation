@@ -1,6 +1,8 @@
-# fable_video_generation 製作計畫
+# unity_video_generation 製作計畫
 
-目標：30 秒直式短影片，介紹「用 Fable 5.2 搭配 Unity 做短影音並上傳 Reels」的流程。
+> 2026-11-17 專案由 fable_video_generation 改名為 unity_video_generation；品牌為 Claude × Unity，不標版本，目標含直式（9:16）與橫式（16:9）。以下 30 秒片計畫為當時紀錄，目前實作為直式。
+
+目標：30 秒直式短影片，介紹「用 Claude（製作當時為 Fable 5.2）搭配 Unity 做短影音並上傳 Reels」的流程。
 
 ## 規格
 - 1080×1920、30 fps、30 秒、H.264 + AAC 48 kHz、響度 -14 LUFS
