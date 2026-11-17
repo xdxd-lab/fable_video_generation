@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
-"""Narration, timeline, bilingual subtitles and final mux for a story under stories/<name>/.
+"""Narration, timeline, Unity render, bilingual subtitles and final mux for a story under stories/<name>/.
 
-  python3 scripts/story.py <name> timeline          -> narration.wav, timeline.json, subtitles.ass
-  python3 scripts/story.py <name> final VIDEO.mp4   -> output/<name>/final.mp4
-Cue timing comes from the synthesized audio, so pictures, voice and subtitles share one timeline.
+  python3 scripts/story.py <name>                      everything, both formats
+  python3 scripts/story.py <name> all -f horizontal    everything, one format
+  python3 scripts/story.py <name> timeline             output/<name>/narration.wav + timeline.json
+  python3 scripts/story.py <name> render -f vertical   output/<name>/vertical/unity_render.mp4
+  python3 scripts/story.py <name> render -f vertical --stills 3,20
+  python3 scripts/story.py <name> final -f vertical    output/<name>/vertical/final.mp4
+
+Formats: vertical 1080x1920 (9:16), horizontal 1920x1080 (16:9), both (default).
+Cue timing comes from the synthesized audio, so pictures, voice and subtitles share one timeline
+across both formats; only the picture framing and subtitle layout differ.
 """
-import json, subprocess, sys
+import argparse, json, os, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-NAME = sys.argv[1]
-SDIR, OUT = ROOT / "stories" / NAME, ROOT / "output" / NAME
-S = json.loads((SDIR / "story.json").read_text(encoding="utf-8"))
-SPEC, CUES = S["spec"], S["cues"]
-W, H, FPS, DUR = SPEC["width"], SPEC["height"], SPEC["fps"], SPEC["duration"]
+FORMATS = {"vertical": (1080, 1920), "horizontal": (1920, 1080)}
+NAME = SDIR = OUT = S = SPEC = CUES = FPS = DUR = None
 LEAD, TAIL = 0.7, 1.2                      # silence before the first cue / after the last
 GAP = {"clause": 0.10, "sentence": 0.32, "shot": 0.60}
 MAX_TEMPO = 1.15
@@ -77,7 +81,6 @@ def timeline():
     flt.append(f"{''.join(lab)}amix=inputs={len(cues)}:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11,apad,atrim=0:{DUR}[out]")
     run("ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", ";".join(flt), "-map", "[out]",
         "-ar", "48000", "-ac", "2", OUT / "narration.wav")
-    subtitles(cues)
     print(f"tempo {tempo:.3f}  pause stretch {stretch:.2f}  last cue ends {cues[-1]['end']:.2f}s")
     for s in shots: print(f"  {s['id']}  {s['start']:6.2f} - {s['end']:6.2f}")
 
@@ -86,8 +89,16 @@ def ts(t):
     return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
 
 
-def subtitles(cues):
-    """Chinese sits just above y=1465 (bottom-anchored); English hangs below it (top-anchored), so wrapping never collides."""
+def subtitles(cues, fmt):
+    """Chinese is bottom-anchored on a baseline; English hangs below it (top-anchored), so wrapping never collides.
+    Vertical: baseline y=1465 in the panel under the picture. Horizontal: baseline y=960 over the picture."""
+    W, H = FORMATS[fmt]
+    if fmt == "vertical":
+        zh, en = "56,&H00FFFFFF,&H00FFFFFF,&H00201008,&H96000000,-1,0,0,0,100,100,1,0,1,4,2,2,60,60,455,1", \
+                 "34,&H00E8DCD2,&H00FFFFFF,&H00201008,&H96000000,0,-1,0,0,100,100,0,0,1,3,1,8,90,90,1486,1"
+    else:
+        zh, en = "58,&H00FFFFFF,&H00FFFFFF,&H00201008,&H96000000,-1,0,0,0,100,100,1,0,1,4,2,2,160,160,120,1", \
+                 "36,&H00E8DCD2,&H00FFFFFF,&H00201008,&H96000000,0,-1,0,0,100,100,0,0,1,3,1,8,200,200,976,1"
     head = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W}
@@ -97,8 +108,8 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: ZH,PingFang TC,56,&H00FFFFFF,&H00FFFFFF,&H00201008,&H96000000,-1,0,0,0,100,100,1,0,1,4,2,2,60,60,455,1
-Style: EN,Helvetica Neue,34,&H00E8DCD2,&H00FFFFFF,&H00201008,&H96000000,0,-1,0,0,100,100,0,0,1,3,1,8,90,90,1486,1
+Style: ZH,PingFang TC,{zh}
+Style: EN,Helvetica Neue,{en}
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -109,12 +120,25 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         end = min(c["end"] + 0.35, nxt - 0.10)   # never overlap the next cue, or libass shifts lines apart
         for style, key in (("ZH", "zh"), ("EN", "en")):
             ev.append(f"Dialogue: 1,{ts(c['start'] - 0.03)},{ts(end)},{style},,0,0,0,,{{\\fad(120,120)}}{src[key]}")
-    (OUT / "subtitles.ass").write_text(head + "\n".join(ev) + "\n", encoding="utf-8")
+    out = OUT / fmt / "subtitles.ass"; out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(head + "\n".join(ev) + "\n", encoding="utf-8")
+    return out
 
 
-def final(video):
-    ass = (OUT / "subtitles.ass").relative_to(ROOT)
-    out = OUT / "final.mp4"
+def render(fmt, stills=None):
+    if not (OUT / "timeline.json").exists():
+        sys.exit("timeline.json missing; run the timeline step first")
+    cmd = [ROOT / "scripts/story_render.sh", NAME, fmt] + ([stills] if stills else [])
+    run(*cmd)
+
+
+def final(fmt):
+    video = OUT / fmt / "unity_render.mp4"
+    if not video.exists():
+        sys.exit(f"{video} missing; run the render step first")
+    cues = json.loads((OUT / "timeline.json").read_text(encoding="utf-8"))["cues"]
+    ass = subtitles(cues, fmt).relative_to(ROOT)
+    out = OUT / fmt / "final.mp4"
     run("ffmpeg", "-v", "error", "-y", "-i", video, "-i", OUT / "narration.wav",
         "-filter_complex", f"[0:v]subtitles={ass}[v]", "-map", "[v]", "-map", "1:a", "-t", DUR, "-r", FPS,
         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -122,10 +146,29 @@ def final(video):
     print(out, f"{dur(out):.2f}s")
 
 
-if __name__ == "__main__":
-    import os
+def main():
+    global NAME, SDIR, OUT, S, SPEC, CUES, FPS, DUR
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("name")
+    ap.add_argument("step", nargs="?", default="all", choices=["all", "timeline", "render", "final"])
+    ap.add_argument("-f", "--format", default="both", choices=[*FORMATS, "both"])
+    ap.add_argument("--stills", help="comma-separated seconds; render step only, writes PNGs instead of video")
+    a = ap.parse_args()
     os.chdir(ROOT)
-    mode = sys.argv[2] if len(sys.argv) > 2 else "timeline"
-    if mode == "timeline": timeline()
-    elif mode == "final": final(sys.argv[3])
-    else: sys.exit(__doc__)
+    NAME = a.name
+    SDIR, OUT = ROOT / "stories" / NAME, ROOT / "output" / NAME
+    S = json.loads((SDIR / "story.json").read_text(encoding="utf-8"))
+    SPEC, CUES = S["spec"], S["cues"]
+    FPS, DUR = SPEC["fps"], SPEC["duration"]
+    fmts = list(FORMATS) if a.format == "both" else [a.format]
+    if a.step in ("all", "timeline"):
+        timeline()
+    for f in fmts:
+        if a.step in ("all", "render"):
+            render(f, a.stills)
+        if a.step in ("all", "final") and not a.stills:
+            final(f)
+
+
+if __name__ == "__main__":
+    main()

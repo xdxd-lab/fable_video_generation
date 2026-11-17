@@ -2,7 +2,8 @@
 // star, glows and rings on top. Timing comes from timeline.json (built from the narration audio).
 //
 //   Unity -batchmode -projectPath unity -executeMethod StoryBuilder.Render
-// Environment: STORY_REFS (image dir), STORY_TIMELINE (json), REEL_OUT, REEL_STILLS (optional), REEL_FFMPEG
+// Environment: STORY_REFS (image dir), STORY_TIMELINE (json), REEL_OUT, REEL_STILLS (optional), REEL_FFMPEG,
+//              STORY_FORMAT = vertical (1080x1920, picture on top + subtitle panel) | horizontal (1920x1080, full frame)
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,10 +15,22 @@ using Debug = UnityEngine.Debug;
 
 public static class StoryBuilder
 {
-    const int W = 1080, H = 1920, FPS = 30, UI = 5;
-    const float VH = 1340f;             // picture area height; subtitles live in the panel below
-    const float S0 = VH / 576f;         // screen px per image px at zoom 1
+    const int FPS = 30, UI = 5;
     const float IW = 1024f, IH = 576f;
+    static bool Wide;                   // horizontal 16:9 output
+    static int W = 1080, H = 1920;
+    static float VH = 1340f;            // picture area height; vertical keeps a subtitle panel below it
+    static float S0 = VH / IH;          // screen px per image px at zoom 1
+    static float ZK = 1f;               // extra zoom so horizontal shots still have room to pan
+    static float TY = 250f;             // title line y
+
+    static void SetFormat(string f)
+    {
+        Wide = f == "horizontal";
+        if (!Wide && !string.IsNullOrEmpty(f) && f != "vertical") throw new Exception("unknown STORY_FORMAT " + f);
+        W = Wide ? 1920 : 1080; H = Wide ? 1080 : 1920; VH = Wide ? 1080f : 1340f;
+        S0 = VH / IH; ZK = Wide ? 1.12f : 1f; TY = Wide ? 150f : 250f;
+    }
 
     [Serializable] class Cue { public string shot; public float start, end; }
     [Serializable] class Shot { public string id; public float start, end; }
@@ -146,7 +159,7 @@ public static class StoryBuilder
         public Transform root; public Material bg;
         public void Cam(float cx, float cy, float zoom)
         {
-            float s = S0 * zoom;
+            float s = S0 * zoom * ZK;
             cx = Mathf.Clamp(cx, W / 2f / s, IW - W / 2f / s); cy = Mathf.Clamp(cy, VH / 2f / s, IH - VH / 2f / s);
             root.localScale = new Vector3(s, s, 1f);
             root.position = Px(W / 2f, VH / 2f) - s * Img(cx, cy);
@@ -239,8 +252,8 @@ public static class StoryBuilder
     {
         var sc = sceneOf["A"] = MakeScene("A", 1, 42, 11); var sh = Sh("A");
         var spire = new Glow(sc.root, Img(778, 128), 120, 120, 30);
-        var shade = new Glow(null, Px(540, 290), 1100, 420, 940, false);
-        var title = Text("星辰城的小星星", 540, 250, 92, true); var sub = Text("阿澄與藍色小星星的回家路", 540, 350, 40, false);
+        var shade = new Glow(null, Px(W / 2f, TY + 40), W + 20, 420, 940, false);
+        var title = Text("星辰城的小星星", W / 2f, TY, 92, true); var sub = Text("阿澄與藍色小星星的回家路", W / 2f, TY + 100, 40, false);
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
@@ -249,7 +262,7 @@ public static class StoryBuilder
             float a = Mathf.Min(U(t, 0.4f, 0.9f), 1f - U(t, sh.end - 1.3f, 0.8f));
             shade.Set(Hex("05061A"), 0.6f * a);
             title.color = new Color(1, 1, 1, a); sub.color = new Color(0.86f, 0.9f, 1f, a * 0.95f);
-            title.transform.localPosition = Px(540, 250 - 14f * OutCubic(U(t, 0.4f, 1.2f)));
+            title.transform.localPosition = Px(W / 2f, TY - 14f * OutCubic(U(t, 0.4f, 1.2f)));
         });
     }
 
@@ -473,6 +486,8 @@ public static class StoryBuilder
     // ---------- build + render ----------
     static void Build()
     {
+        SetFormat(Environment.GetEnvironmentVariable("STORY_FORMAT"));
+        Debug.Log($"[Story] format {(Wide ? "horizontal" : "vertical")} {W}x{H}");
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         anims.Clear(); scenes.Clear(); sceneOf.Clear();
         ShaderUtil.allowAsyncCompilation = false;
@@ -496,10 +511,15 @@ public static class StoryBuilder
 
         ShotA(); ShotB(); ShotCD(); ShotE(); ShotF(); ShotGH(); ShotI();
 
-        // Storybook panel under the picture, with a soft edge, plus a slight darkening at the very top.
-        Part(null, Quad(W, H - VH + 2), Px(W / 2f, (VH + H) / 2f), Night, 900);
+        // Vertical: storybook panel under the picture with a soft edge. Horizontal: subtitles sit on the
+        // picture, so only darken the bottom for legibility. Both get a slight darkening at the very top.
         var clear = Night; clear.a = 0f;
-        Part(null, Quad(W, 190, clear, Night), Px(W / 2f, VH - 95f), White, 900);
+        if (Wide) { var shadeBottom = Night; shadeBottom.a = 0.72f; Part(null, Quad(W, 300, clear, shadeBottom), Px(W / 2f, H - 150f), White, 900); }
+        else
+        {
+            Part(null, Quad(W, H - VH + 2), Px(W / 2f, (VH + H) / 2f), Night, 900);
+            Part(null, Quad(W, 190, clear, Night), Px(W / 2f, VH - 95f), White, 900);
+        }
         Part(null, Quad(W, 200, new Color(0, 0, 0, 0.45f), new Color(0, 0, 0, 0f)), Px(W / 2f, 100f), White, 900);
         curtain = Part(null, Quad(W, H), Px(W / 2f, H / 2f), Night, 1000).sharedMaterial;
     }

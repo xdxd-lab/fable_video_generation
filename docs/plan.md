@@ -1,6 +1,6 @@
 # unity_video_generation 製作計畫
 
-> 2026-11-17 專案由 fable_video_generation 改名為 unity_video_generation；品牌為 Claude × Unity，不標版本，目標含直式（9:16）與橫式（16:9）。以下 30 秒片計畫為當時紀錄，目前實作為直式。
+> 2026-11-17 專案由 fable_video_generation 改名為 unity_video_generation；品牌為 Claude × Unity，不標版本，目標含直式（9:16）與橫式（16:9）。以下 30 秒片計畫為當時紀錄，30 秒片仍為直式；故事短片已支援直式與橫式（見文末）。
 
 目標：30 秒直式短影片，介紹「用 Claude（製作當時為 Fable 5.2）搭配 Unity 做短影音並上傳 Reels」的流程。
 
@@ -32,11 +32,22 @@
 
 ## 故事短片：星辰城的小星星（2026-11-13）
 - 來源：`stories/star_city/story.json`（分鏡、雙語台詞）、`stories/star_city/refs/`（使用者提供的六張 1024×576 場景圖）
-- 流程：`python3 scripts/story.py star_city timeline` → `scripts/story_render.sh star_city` → `python3 scripts/story.py star_city final output/star_city/unity_render.mp4`
-- 時間軸由旁白音檔決定：每句各自合成、去頭尾靜音、依句間停頓排列，結果寫入 `output/star_city/timeline.json`，Unity 與字幕共用
+- 流程（2026-11-17 起一個指令）：`python3 scripts/story.py star_city`；分步驟為 `story.py star_city timeline` → `story.py star_city render -f <格式>`（內部呼叫 `scripts/story_render.sh star_city <格式>`）→ `story.py star_city final -f <格式>`。詳見下方「直式與橫式輸出」
+- 時間軸由旁白音檔決定：每句各自合成、去頭尾靜音、依句間停頓排列，結果寫入 `output/star_city/timeline.json`（兩種格式共用），Unity 與字幕共用
 - 旁白原文 59 秒放不下，精簡台詞後再整體加速 1.108 倍；上限設 1.15 倍，超過就要再刪字
-- 版面：畫面佔上方 1340 px，下方深色面板放字幕。原因有二：圖只有 576 px 高，全幅放大 3.3 倍太糊，這樣只放大 2.3 倍；而且圖的前景地面在最下緣，全幅會被字幕與 Reels 介面蓋住
+- 版面（直式）：畫面佔上方 1340 px，下方深色面板放字幕。原因有二：圖只有 576 px 高，全幅放大 3.3 倍太糊，這樣只放大 2.3 倍；而且圖的前景地面在最下緣，全幅會被字幕與 Reels 介面蓋住
 - 圖片先用 lanczos 放大兩倍並銳化（`refs_2x/`），再交給 Unity
 - `StoryBuilder.cs`：每張圖是一個場景，鏡頭移動就是場景根節點的位移與縮放，角色與光效都用圖片像素座標定位，所以橫移時不會跑位
 - 字幕相鄰兩句的時間不可重疊，否則 libass 會把字幕上下推開
 - 動態字型的 TextMesh 要先呼叫 `RequestCharactersInTexture`，否則批次算圖會缺字
+
+## 直式與橫式輸出（2026-11-17）
+- 指令：`python3 scripts/story.py <name> [all|timeline|render|final] [-f vertical|horizontal|both] [--stills 3,20]`，預設 `all` 加 `both`，一次完成旁白、時間軸、兩種格式的 Unity 算圖、字幕燒入與合成（star_city 兩種格式約 83 秒，Mac Studio M4 Max）。`story_render.sh <name> <vertical|horizontal> [stills]` 由 story.py 呼叫，以 `STORY_FORMAT` 環境變數告訴 Unity 用哪種格式
+- 共用時間軸：兩種格式用同一份旁白與 `timeline.json`，只有構圖與字幕版面不同，所以聲音、畫面節奏一致
+- 輸出配置：共用 `output/<name>/narration.wav`、`timeline.json`；各格式在 `output/<name>/<format>/` 下有 `unity_render.mp4`、`subtitles.ass`、`final.mp4`、`still_<t>.png`
+- 直式 1080×1920：畫面佔上方 1340 px，下方面板放字幕，版面不變
+- 橫式 1920×1080：畫面鋪滿整個畫格。原圖是 16:9（1024×576），放大 1.875 倍剛好填滿，不會裁切或留黑邊；鋪滿後鏡頭平移沒有餘裕，所以額外加 ZK 1.12 的縮放讓平移有空間。標題放在 y=150
+- 橫式字幕：直接疊在畫面上，中文以底部對齊在 y=960，英文掛在其下 y=976；畫面底部加一層漸層壓暗，確保字幕可讀
+- 30 秒流程介紹（`script.json`、`scripts/build.py`、`scripts/unity_render.sh`、`ReelBuilder.cs`）仍只有直式，未改動
+- `story.json` 不再有 width/height（由格式決定尺寸），保留 fps、duration、voice
+- `scripts/banner.py` 改取 `output/star_city/horizontal/final.mp4`（t=49.8）當 16:9 螢幕、`output/star_city/vertical/final.mp4`（t=22）當 9:16 手機，須先跑過 story.py。輸出 `docs/banner/banner.png` 與 `social-preview.jpg`（JPEG，因 GitHub 社群預覽上限 1 MB），重新產生後要在 GitHub Settings 手動重新上傳

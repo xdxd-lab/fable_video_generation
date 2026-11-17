@@ -3,9 +3,10 @@
 
     python3 scripts/banner.py
 
-Inputs : stories/star_city/refs_2x/Image_1.png (background)
-         stories/star_city/refs_2x/Image_6.png (16:9 screen)
-         output/star_city/final.mp4            (9:16 phone screen; run the story pipeline first)
+Inputs : stories/star_city/refs_2x/Image_1.png          (background)
+         output/star_city/horizontal/final.mp4          (16:9 screen frame)
+         output/star_city/vertical/final.mp4            (9:16 phone frame)
+         Run `python3 scripts/story.py star_city` first to produce both videos.
 Outputs: docs/banner/banner.png          2560x1280 (README)
          docs/banner/social-preview.jpg  1280x640  (GitHub Settings > Social preview)
 
@@ -22,9 +23,9 @@ FFMPEG = shutil.which("ffmpeg") or str(Path.home() / ".local/bin/ffmpeg")
 W, H = 2560, 1280
 
 BG = ROOT / "stories/star_city/refs_2x/Image_1.png"
-WIDE_IMAGE = ROOT / "stories/star_city/refs_2x/Image_6.png"
-WIDE_CUE = ("阿澄爬上階梯，踮起腳，", "Cheng climbed the steps, stood on tiptoe,")
-SCREEN_VIDEO = ROOT / "output/star_city/final.mp4"
+WIDE_VIDEO = ROOT / "output/star_city/horizontal/final.mp4"
+WIDE_TIME = 49.8                   # armillary rings glowing after the star returns
+SCREEN_VIDEO = ROOT / "output/star_city/vertical/final.mp4"
 SCREEN_TIME = 22.0                 # star touching Cheng's fingertip
 
 EYEBROW = "CLAUDE  ×  UNITY"
@@ -85,16 +86,6 @@ Style: D,{EN_FONT},20,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,10
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     return head + "".join(f"Dialogue: {l},0:00:00.00,0:00:01.00,D,,0,0,0,,{t}\n" for l, t in events)
-
-
-def wide_subtitles():
-    """Bilingual subtitle burned into the 1920x1080 landscape screen."""
-    zh, en = WIDE_CUE
-    return [
-        (0, r"{\an7\pos(0,0)\bord0\blur60\1c&H0A0507&\1a&H50&\p1}" + rrect(-100, 860, 2120, 400, 0)),
-        (0, rf"{{\an2\pos(960,950)\fn{ZH_FONT}\fs64\b1\bord4\shad2\3c&H201008&\1c&HFFFFFF&}}{zh}"),
-        (0, rf"{{\an2\pos(960,1020)\fn{EN_FONT}\fs38\i1\bord3\shad1\3c&H201008&\1c&HD2DCE8&}}{en}"),
-    ]
 
 
 def bezel(x, y, w, h, r, pad):
@@ -179,7 +170,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         files = {}
-        for name, ev, size in (("wide", wide_subtitles(), (1920, 1080)), ("back", back_layer(), (W, H)),
+        for name, ev, size in (("back", back_layer(), (W, H)),
                                ("mid", mid_layer(), (W, H)), ("front", front_layer(), (W, H))):
             files[name] = tmp / f"{name}.ass"
             files[name].write_text(ass(ev, *size), encoding="utf-8")
@@ -189,14 +180,13 @@ def main():
             f"[0:v]scale={W}:-1,crop={W}:{H}:0:(ih-{H})*0.45,format=rgba[bg];"
             f"color=c=0x070A1A:s={W}x{H},format=rgba,geq=r=7:g=10:b=26:a='clip({shade}\\,0\\,255)'[sh];"
             f"[bg][sh]overlay,subtitles={files['back']}[b1];"
-            f"[1:v]scale=1920:1080:flags=lanczos,subtitles={files['wide']}[w0];"
-            + rounded("w0", WIDE_W, WIDE_H, WIDE_R, "wide")
+            + rounded("1:v", WIDE_W, WIDE_H, WIDE_R, "wide")
             + f"[b1][wide]overlay={WIDE_X}:{WIDE_Y},subtitles={files['mid']}[b2];"
             + rounded("2:v", PHONE_W, PHONE_H, PHONE_R, "ph")
             + f"[b2][ph]overlay={PHONE_X}:{PHONE_Y},subtitles={files['front']},format=rgb24,split[a][b];"
             f"[b]scale=1280:640:flags=lanczos[s]"
         )
-        subprocess.run([FFMPEG, "-v", "error", "-y", "-i", str(BG), "-i", str(WIDE_IMAGE),
+        subprocess.run([FFMPEG, "-v", "error", "-y", "-i", str(BG), "-ss", str(WIDE_TIME), "-i", str(WIDE_VIDEO),
                         "-ss", str(SCREEN_TIME), "-i", str(SCREEN_VIDEO),
                         "-filter_complex", graph,
                         "-map", "[a]", "-frames:v", "1", str(out / "banner.png"),

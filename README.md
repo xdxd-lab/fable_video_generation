@@ -4,9 +4,9 @@
 
 # Unity Video Generation
 
-Claude × Unity：用 Claude 寫腳本與程式、Unity 逐格算圖、ffmpeg 合成旁白與字幕，產出雙語短影音。目標同時涵蓋直式（9:16，例如 Instagram Reels）與橫式（16:9）；目前已完成的影片都是直式 1080×1920，橫式輸出尚在規劃中、還沒實作。
+Claude × Unity：用 Claude 寫腳本與程式、Unity 逐格算圖、ffmpeg 合成旁白與字幕，產出雙語短影音。故事短片同時輸出直式（9:16，例如 Instagram Reels）與橫式（16:9）；30 秒流程介紹目前只有直式。
 
-A pipeline that turns a written script into a bilingual (zh-TW / EN) short video: AI-written script and code, Unity rendering, ffmpeg for narration and subtitles. Built for both vertical (9:16) and horizontal (16:9) video; the videos produced so far are vertical, and horizontal output is planned but not implemented yet.
+A pipeline that turns a written script into a bilingual (zh-TW / EN) short video: AI-written script and code, Unity rendering, ffmpeg for narration and subtitles. The story pipeline outputs both vertical (9:16) and horizontal (16:9) video from one command; the 30-second workflow reel is vertical only.
 
 > [!IMPORTANT]
 > **請先安裝 [Git LFS](https://git-lfs.com/) 再複製本專案。**
@@ -22,12 +22,12 @@ A pipeline that turns a written script into a bilingual (zh-TW / EN) short video
 
 ## 成品
 
-| 影片 | 長度 | 內容 |
-| --- | --- | --- |
-| 流程介紹 | 30 秒 | 介紹「Claude + Unity → 短影音 → 上傳 Reels」的流程（內容中提到的工具版本為製作當時的版本） |
-| 星辰城的小星星 | 60 秒 | 學徒阿澄與一顆迷路藍色小星星的故事，以六張場景圖為舞台 |
+| 影片 | 長度 | 版本 | 內容 |
+| --- | --- | --- | --- |
+| 流程介紹 | 30 秒 | 直式 | 介紹「Claude + Unity → 短影音 → 上傳 Reels」的流程（內容中提到的工具版本為製作當時的版本） |
+| 星辰城的小星星 | 60 秒 | 直式＋橫式 | 學徒阿澄與一顆迷路藍色小星星的故事，以六張場景圖為舞台 |
 
-目前輸出規格（直式）：1080×1920、30 fps、H.264 + AAC、響度 -14 LUFS，中文字幕為主、英文字幕並列。成品影片不放進儲存庫，請依下方步驟自行產生。
+輸出規格：直式 1080×1920、橫式 1920×1080（30 秒流程介紹只有直式）、30 fps、H.264 + AAC、響度 -14 LUFS，中文字幕為主、英文字幕並列。成品影片不放進儲存庫，請依下方步驟自行產生。
 
 ## 需要的軟體
 
@@ -51,15 +51,39 @@ python3 scripts/build.py final output/unity_render.mp4
 
 ### 60 秒故事短片
 
+一個指令完成全部：合成旁白與時間軸、依格式各自用 Unity 算圖、燒入字幕並合成，預設同時輸出直式與橫式。
+
 ```sh
-python3 scripts/story.py star_city timeline           # 合成旁白，依旁白長度排出時間軸
-scripts/story_render.sh star_city                     # Unity 批次算圖
-python3 scripts/story.py star_city final output/star_city/unity_render.mp4
+python3 scripts/story.py star_city                    # 等同 all，兩種格式（約 83 秒，Mac Studio M4 Max）
 ```
 
-輸出：`output/star_city/final.mp4`
+分步驟或指定格式（`-f vertical|horizontal|both`，預設 both）：
 
-兩支算圖腳本都可以加上時間參數，例如 `scripts/story_render.sh star_city 3,20,45`，只輸出指定秒數的靜態圖，方便快速檢查畫面。
+```sh
+python3 scripts/story.py star_city all -f horizontal  # 全流程，只做橫式
+python3 scripts/story.py star_city timeline           # 只合成旁白並排時間軸（兩種格式共用）
+python3 scripts/story.py star_city render -f vertical # 只做 Unity 算圖
+python3 scripts/story.py star_city final -f vertical  # 只做字幕與合成
+```
+
+快速檢查畫面：加上 `--stills`，只輸出指定秒數的靜態圖，不算整支影片。
+
+```sh
+python3 scripts/story.py star_city render -f vertical --stills 3,20
+```
+
+輸出（旁白與時間軸兩種格式共用，其餘依格式放在 `vertical/` 或 `horizontal/`）：
+
+```
+output/star_city/narration.wav
+output/star_city/timeline.json
+output/star_city/<format>/unity_render.mp4   Unity 算圖（無字幕、無聲）
+output/star_city/<format>/subtitles.ass
+output/star_city/<format>/final.mp4          成品
+output/star_city/<format>/still_<t>.png      --stills 的靜態圖
+```
+
+`scripts/story_render.sh <name> <vertical|horizontal> [stills]` 是 `story.py` 內部呼叫的 Unity 算圖腳本，會設定 `STORY_FORMAT` 環境變數，一般不需要直接執行。
 
 ### 橫幅
 
@@ -67,7 +91,7 @@ python3 scripts/story.py star_city final output/star_city/unity_render.mp4
 python3 scripts/banner.py
 ```
 
-輸出 `docs/banner/banner.png`（README 用，2560×1280）與 `docs/banner/social-preview.jpg`（GitHub 社群預覽圖，1280×640）。文字與版面都集中在腳本開頭的常數，修改後重跑即可。需要先產生故事短片，因為手機畫面取自其中一格。
+輸出 `docs/banner/banner.png`（README 用，2560×1280）與 `docs/banner/social-preview.jpg`（GitHub 社群預覽圖，1280×640）。文字與版面都集中在腳本開頭的常數，修改後重跑即可。需要先產生直式與橫式兩支故事短片（先執行 `python3 scripts/story.py star_city`）：橫向螢幕畫面取自橫式成品，手機畫面取自直式成品。重新產生後，`social-preview.jpg` 需要手動到 GitHub 的 Settings > General > Social preview 重新上傳（為符合 GitHub 1 MB 上限而使用 JPEG）。
 
 ## 專案結構
 
@@ -76,7 +100,7 @@ script.json                    30 秒片的分鏡與雙語台詞
 stories/star_city/story.json   故事短片的分鏡與雙語台詞
 stories/star_city/refs/        六張原始場景圖（Git LFS）
 stories/star_city/refs_2x/     放大兩倍後交給 Unity 的版本（Git LFS）
-scripts/                       旁白、字幕、算圖與合成腳本
+scripts/                       旁白、字幕、算圖與合成腳本（story.py 為故事短片的一鍵入口）
 unity/Assets/Editor/           ReelBuilder.cs、StoryBuilder.cs：以程式建場景並逐格算圖
 docs/plan.md                   製作計畫、技術細節與踩過的坑
 ```
