@@ -179,7 +179,7 @@ public static partial class StoryBuilder
             string outPath = Environment.GetEnvironmentVariable("SHEET_OUT");
             if (string.IsNullOrEmpty(outPath)) throw new Exception("SHEET_OUT is not set");
             Directory.CreateDirectory(Path.GetDirectoryName(outPath));
-            W = 2560; H = 1360; Wide = true;
+            W = 2560; H = 1900; Wide = true;
             InitCommon();
             var poses = new (string label, float walk, float arm, float sit, float tip, float t)[]
             {
@@ -189,7 +189,7 @@ public static partial class StoryBuilder
             float x0 = 360f, dx = 316f, scale = 4.6f;
             var rows = new (string label, float y, Func<Transform, Kid> make)[]
             {
-                ("v1 目前", 600f, p => new KidV1(p)), ("v2 精修", 1240f, p => new KidV2(p)),
+                ("v1", 600f, p => new KidV1(p)), ("v2", 1170f, p => new KidV2(p)), ("v3 打磨", 1740f, p => new KidV3(p)),
             };
             var bg = Part(null, Quad(W, H, Hex("1B1F44"), Night), Px(W / 2f, H / 2f), White, -200);
             foreach (var row in rows)

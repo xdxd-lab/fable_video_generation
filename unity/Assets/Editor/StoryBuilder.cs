@@ -138,7 +138,7 @@ public static partial class StoryBuilder
         public Star(Transform parent, int order = 40)
         {
             root = new GameObject("star") { layer = UI }.transform; root.SetParent(parent, false);
-            aura = new Glow(root, Vector3.zero, 150, 150, order - 1); halo = new Glow(root, Vector3.zero, 70, 70, order); core = new Glow(root, Vector3.zero, 26, 26, order + 2);
+            aura = new Glow(root, Vector3.zero, 150, 150, 5); halo = new Glow(root, Vector3.zero, 70, 70, 6); core = new Glow(root, Vector3.zero, 26, 26, order + 2);
             sh = new Glow(root, Vector3.zero, 120, 9, order + 1); sv = new Glow(root, Vector3.zero, 9, 120, order + 1);
         }
         public void Set(Vector3 local, float size, float bright, float t, Color? tint = null)
@@ -198,9 +198,13 @@ public static partial class StoryBuilder
         public abstract void Pose(Vector3 feetLocal, float scale, int facing, float walk = 0f, float armDeg = 0f, float sit = 0f, float tip = 0f);
         public abstract Vector3 Hand(float reach = 0f);
         public void Hide() => Pose(Vector3.zero, 0f, 1);
+        // v3 only (call after Pose): rim light from src, eyes/head towards target, wonder 0..1 opens the mouth.
+        public virtual void Light(Vector3 src, Color c, float k) { }
+        public virtual void Look(Vector3 target, float w = 1f) { }
+        public virtual void Emote(float wonder) { }
     }
     static string CharacterVersion => Environment.GetEnvironmentVariable("STORY_CHARACTER") ?? "v1";
-    static Kid NewKid(Transform parent) => CharacterVersion == "v2" ? (Kid)new KidV2(parent) : new KidV1(parent);
+    static Kid NewKid(Transform parent) => CharacterVersion == "v3" ? new KidV3(parent) : CharacterVersion == "v2" ? (Kid)new KidV2(parent) : new KidV1(parent);
     static float NowT;                  // current story time, for idle motion (blink, sway) inside Pose
 
     class KidV1 : Kid
@@ -289,6 +293,7 @@ public static partial class StoryBuilder
             sc.Cam(Mathf.Lerp(206, 236, u), 330, 1.16f); sc.Tint(1f);
             float rub = Mathf.Sin(t * 10f);
             kid.Pose(Img(170, 506), 1.0f, -1, 0.5f + 0.08f * rub, 62f + 26f * rub);
+            kid.Light(Img(spots[0]), Hex("E9D4FF"), 0.6f); kid.Look(Img(96, 462), 0.8f);
             for (int i = 0; i < spots.Length; i++)
             {
                 float k = Pulse(Mathf.Repeat(t - sh.start - i * 0.9f, 3.6f), 0.5f, 0.18f, 0.7f);
@@ -317,7 +322,9 @@ public static partial class StoryBuilder
                 float walk = U(t, c.start, C(5) - c.start - 0.2f);
                 float reach = Smooth(U(t, C(5), 0.6f));
                 kid.Pose(Img(Mathf.Lerp(150, 236, Smooth(walk)), Mathf.Lerp(470, 494, Smooth(walk))), 1.0f, 1, walk < 1f ? walk * 5f : 0f, 18f + 40f * reach);
-                star.Set(Vector3.Lerp(ground, hover, Smooth(U(t, C(5) + 0.3f, 1.0f))) + new Vector3(0, Mathf.Sin(t * 2.4f) * 1.5f), 0.9f, flick, t);
+                var sp = Vector3.Lerp(ground, hover, Smooth(U(t, C(5) + 0.3f, 1.0f))) + new Vector3(0, Mathf.Sin(t * 2.4f) * 1.5f);
+                star.Set(sp, 0.9f, flick, t);
+                kid.Light(sp, Blue, 0.35f + 0.45f * flick); kid.Look(sp, Smooth(U(t, C(5) - 0.6f, 0.8f)));
                 touch.Set(Blue, 0f);
             }
             else
@@ -328,7 +335,9 @@ public static partial class StoryBuilder
                 kid.Pose(Img(236, 494), 1.0f, 1, 0f, 58f + 40f * raise);
                 var tip = kid.Hand(2.5f) + new Vector3(4.5f, 1.5f);
                 float go = Smooth(U(t, C(9), 0.9f)), bump = Pulse(t, C(9) + 0.9f, 0.1f, 0.5f);
-                star.Set(Vector3.Lerp(hover + new Vector3(8, 8), tip, go) + new Vector3(Mathf.Sin(t * 3f) * 0.8f - bump * 2.5f, Mathf.Sin(t * 2.4f) * 1.2f), 0.75f + 0.25f * bump, flick + bump, t);
+                var sp = Vector3.Lerp(hover + new Vector3(8, 8), tip, go) + new Vector3(Mathf.Sin(t * 3f) * 0.8f - bump * 2.5f, Mathf.Sin(t * 2.4f) * 1.2f);
+                star.Set(sp, 0.75f + 0.25f * bump, flick + bump, t);
+                kid.Light(sp, Blue, 0.6f + 0.4f * bump); kid.Look(sp); kid.Emote(Pulse(t, C(9) + 0.8f, 0.25f, 2.2f));
                 touch.At(tip); touch.Set(Hex("BFE8FF"), bump * 1.3f); touch.Size(40 + 50 * bump, 40 + 50 * bump);
             }
             for (int i = 0; i < gates.Length; i++)
@@ -355,7 +364,9 @@ public static partial class StoryBuilder
             kid.Pose(Img(Mathf.Lerp(585, 716, stop), Mathf.Lerp(396, 372, stop)), 0.92f, 1, stop < 1f ? (t - sh.start) * 2.3f : 0f, 78f);
             float shrink = Smooth(U(t, C(13), 0.7f));
             float flick = 0.5f + 0.5f * Mathf.SmoothStep(0.15f, 0.8f, Noise(t * 5.5f));
-            star.Set(kid.Hand() + new Vector3(3f, Mathf.Lerp(13f, 3f, shrink) + Mathf.Sin(t * 2.6f) * 1.2f), Mathf.Lerp(0.85f, 0.38f, shrink), flick * Mathf.Lerp(1f, 0.55f, shrink), t);
+            var sp = kid.Hand() + new Vector3(3f, Mathf.Lerp(13f, 3f, shrink) + Mathf.Sin(t * 2.6f) * 1.2f);
+            star.Set(sp, Mathf.Lerp(0.85f, 0.38f, shrink), flick * Mathf.Lerp(1f, 0.55f, shrink), t);
+            kid.Light(sp, Blue, 0.15f + 0.55f * flick * Mathf.Lerp(1f, 0.6f, shrink)); kid.Look(sp, 0.5f + 0.5f * shrink);
             float off = Smooth(U(t, C(12) + 0.5f, 0.6f));
             warm.Set(Gold, (1f - off) * (0.6f + 0.3f * Mathf.Sin(t * 3.2f)) + Pulse(t, C(12) + 0.45f, 0.06f, 0.25f));
             dim[0].Set(Hex("060818"), 0.8f * off); dim[3].Set(Hex("060818"), 0.75f * Smooth(U(t, C(13) + 0.3f, 0.6f)));
@@ -374,7 +385,9 @@ public static partial class StoryBuilder
             sc.Tint(Mathf.Lerp(0.82f, 0.36f, Smooth(U(t, C(14), 2.2f))));
             float walk = U(t, sh.start, C(15) - sh.start - 0.3f), sit = Smooth(U(t, C(15) - 0.2f, 0.7f));
             kid.Pose(Img(Mathf.Lerp(690, 742, Smooth(walk)), 452), 1.0f, 1, walk < 1f ? (t - sh.start) * 1.8f : 0f, Mathf.Lerp(70f, 52f, sit), sit);
-            star.Set(kid.Hand() + new Vector3(2.5f, 4f + Mathf.Sin(t * 2.2f)), 0.42f, 0.5f + 0.2f * Noise(t * 4f), t);
+            var sp = kid.Hand() + new Vector3(2.5f, 4f + Mathf.Sin(t * 2.2f));
+            star.Set(sp, 0.42f, 0.5f + 0.2f * Noise(t * 4f), t);
+            kid.Light(sp, Blue, 0.55f); kid.Look(sp, 0.8f);
         });
     }
 
@@ -452,6 +465,9 @@ public static partial class StoryBuilder
                 ringT[i].localRotation = Quaternion.Euler(0, 0, 25f + i * 55f + ang * 14f);
                 var rc = Color.Lerp(Gold, White, 0.25f + 0.5f * flash); rc.a = Smooth(U(t, tPlace - 0.1f, 0.5f)) * 0.95f; ringMat[i].color = rc;
             }
+            var spos = p + new Vector3(0, Mathf.Sin(t * 2.5f) * 1.2f * (1f - placed));
+            kid.Light(spos, Blue, 0.4f + 0.5f * rise); kid.Look(spos); kid.Emote(Pulse(t, C(18) - 0.2f, 0.4f, 2.0f));
+            kid2.Light(spos, Blue, 0.6f + flash); kid2.Look(spos); kid2.Emote(Pulse(t, tPlace, 0.2f, 2.5f));
         });
     }
 
@@ -481,6 +497,7 @@ public static partial class StoryBuilder
             wink.Set(Img(778, 128), 0.45f + 0.8f * k, 0.22f + 0.75f * k, t, Hex("BFE8FF"));
             float wave = Pulse(t, C(26) + 0.9f, 0.3f, 1.6f);
             kid.Pose(Img(480, 477), 0.9f, 1, 0f, 20f + wave * (125f + 18f * Mathf.Sin(t * 11f)));
+            kid.Light(Img(778, 128), Hex("BFE8FF"), 0.35f + 0.5f * k + 0.25f * home); kid.Look(Img(778, 128), 0.6f); kid.Emote(0.8f * wave);
         });
     }
 
@@ -585,7 +602,9 @@ public static partial class StoryBuilder
             {
                 foreach (var s in stills.Split(','))
                 {
-                    Frame(float.Parse(s, System.Globalization.CultureInfo.InvariantCulture), rt, tex); tex.Apply();
+                    float st = float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+                    for (float pre = Mathf.Max(0f, st - 1f); pre < st - 1e-3f; pre += 1f / FPS) Apply(pre);
+                    Frame(st, rt, tex); tex.Apply();
                     File.WriteAllBytes(Path.Combine(outDir, "still_" + s + ".png"), tex.EncodeToPNG());
                 }
                 Debug.Log("[Story] stills done"); EditorApplication.Exit(0); return;
