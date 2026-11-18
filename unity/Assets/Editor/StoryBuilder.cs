@@ -115,10 +115,10 @@ public static partial class StoryBuilder
     class Glow
     {
         public Transform t; Material m; bool additive;
-        public Glow(Transform parent, Vector3 local, float w, float h, int order, bool additive = true)
+        public Glow(Transform parent, Vector3 local, float w, float h, int order, bool additive = true, Texture tex = null)
         {
             this.additive = additive;
-            var r = Part(parent, Quad(1, 1), local, White, order, additive ? add : flat, glowTex);
+            var r = Part(parent, Quad(1, 1), local, White, order, additive ? add : flat, tex ?? glowTex);
             t = r.transform; m = r.sharedMaterial; t.localScale = new Vector3(w, h, 1); Set(White, 0f);
         }
         public void Set(Color c, float a)
@@ -132,14 +132,22 @@ public static partial class StoryBuilder
     }
 
     // A little star: soft halo, white core and two thin spikes.
+    static int starSeed;
     class Star
     {
-        Glow aura, halo, core, sh, sv; Transform root;
+        Glow aura, halo, core, sh, sv, glint, orb; Transform root;
+        // motes shed by the star (stateful; stills pre-roll a second so they match the video)
+        const int NM = 18; readonly Glow[] mote = new Glow[NM]; readonly Vector3[] mp = new Vector3[NM], mv = new Vector3[NM];
+        readonly float[] age = new float[NM], life = new float[NM], msz = new float[NM]; readonly System.Random rnd;
+        float lastT = -99f, acc; Vector3 lastPos; int next;
         public Star(Transform parent, int order = 40)
         {
             root = new GameObject("star") { layer = UI }.transform; root.SetParent(parent, false);
             aura = new Glow(root, Vector3.zero, 150, 150, 5); halo = new Glow(root, Vector3.zero, 70, 70, 6); core = new Glow(root, Vector3.zero, 26, 26, order + 2);
             sh = new Glow(root, Vector3.zero, 120, 9, order + 1); sv = new Glow(root, Vector3.zero, 9, 120, order + 1);
+            glint = new Glow(root, Vector3.zero, 48, 48, order + 1, true, sparkTex); orb = new Glow(root, Vector3.zero, 64, 64, order, true, ringTex);
+            rnd = new System.Random(1234 + 17 * starSeed++);
+            for (int i = 0; i < NM; i++) mote[i] = new Glow(parent, Vector3.zero, 1, 1, order - 2, true, i % 3 == 0 ? sparkTex : glowTex);
         }
         public void Set(Vector3 local, float size, float bright, float t, Color? tint = null)
         {
@@ -149,6 +157,28 @@ public static partial class StoryBuilder
             aura.Set(c, 0.5f * bright); halo.Set(c, 1.5f * bright); core.Set(Color.Lerp(c, White, 0.8f), 3.2f * bright);
             float sp = 0.75f + 0.25f * Mathf.Sin(t * 6f);
             sh.Set(Color.Lerp(c, White, 0.4f), 2.0f * bright * sp); sv.Set(Color.Lerp(c, White, 0.4f), 2.0f * bright * sp);
+            glint.t.localRotation = Quaternion.Euler(0, 0, 45f + t * 25f); glint.Set(Color.Lerp(c, White, 0.6f), 0.9f * Mathf.Min(bright, 1.2f) * (1.2f - sp));
+            float br = 0.5f + 0.5f * Mathf.Sin(t * 1.7f); orb.Size(54f + 16f * br, 54f + 16f * br); orb.Set(c, 0.22f * Mathf.Min(bright, 1.2f));
+
+            float dt = t - lastT; lastT = t;
+            if (dt <= 0f || dt > 0.2f) { for (int i = 0; i < NM; i++) age[i] = life[i] = 0f; acc = 0f; dt = 0f; lastPos = local; }
+            float speed = dt > 0f ? (local - lastPos).magnitude / dt : 0f; lastPos = local;
+            acc += dt * (size > 0.05f ? bright * 3f + Mathf.Min(speed, 160f) * 0.18f : 0f);
+            while (acc >= 1f)
+            {
+                acc -= 1f; int i = next++ % NM; float a = (float)rnd.NextDouble() * Mathf.PI * 2f;
+                mp[i] = local + new Vector3(Mathf.Cos(a), Mathf.Sin(a)) * 4f * size;
+                mv[i] = new Vector3(Mathf.Cos(a), Mathf.Sin(a)) * (5f + 9f * (float)rnd.NextDouble()) + new Vector3(0, -3f);
+                age[i] = 0f; life[i] = 0.8f + 0.9f * (float)rnd.NextDouble(); msz[i] = (6f + 8f * (float)rnd.NextDouble()) * Mathf.Max(0.55f, size);
+            }
+            for (int i = 0; i < NM; i++)
+            {
+                if (age[i] >= life[i]) { mote[i].Set(c, 0f); continue; }
+                age[i] += dt; mp[i] += mv[i] * dt; mv[i] *= 1f - 1.1f * dt; mv[i].y -= 5f * dt;
+                float u = Mathf.Clamp01(age[i] / life[i]), tw = 0.6f + 0.4f * Mathf.Sin(t * 13f + i * 2.1f);
+                mote[i].At(mp[i]); mote[i].Size(msz[i] * (1f - 0.5f * u), msz[i] * (1f - 0.5f * u)); mote[i].t.localRotation = Quaternion.Euler(0, 0, 40f * age[i] + i * 20f);
+                mote[i].Set(Color.Lerp(c, White, 0.55f), 1.3f * Mathf.Pow(1f - u, 1.3f) * tw);
+            }
         }
         public void Hide() => root.localScale = Vector3.zero;
     }
@@ -269,6 +299,8 @@ public static partial class StoryBuilder
         var spire = new Glow(sc.root, Img(778, 128), 120, 120, 30);
         var shade = new Glow(null, Px(W / 2f, TY + 40), W + 20, 420, 940, false);
         var title = Text("星辰城的小星星", W / 2f, TY, 92, true); var sub = Text("阿澄與藍色小星星的回家路", W / 2f, TY + 100, 40, false);
+        var sweep = new Glow(null, Vector3.zero, 90, 300, 951, true, shaftTex); sweep.t.localRotation = Quaternion.Euler(0, 0, -22f);
+        Sfx("riser", 0.1f, 0.8f); Sfx("glint", 1.3f, 0.7f);
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
@@ -278,6 +310,8 @@ public static partial class StoryBuilder
             shade.Set(Hex("05061A"), 0.6f * a);
             title.color = new Color(1, 1, 1, a); sub.color = new Color(0.86f, 0.9f, 1f, a * 0.95f);
             title.transform.localPosition = Px(W / 2f, TY - 14f * OutCubic(U(t, 0.4f, 1.2f)));
+            float sw = U(t, 1.3f, 1.1f); sweep.At(Px(Mathf.Lerp(W * 0.12f, W * 0.88f, Smooth(sw)), TY + 10f));
+            sweep.Set(Hex("FFF2D0"), a * 0.55f * Mathf.Sin(sw * Mathf.PI));
         });
     }
 
@@ -287,6 +321,9 @@ public static partial class StoryBuilder
         var kid = NewKid(sc.root);
         var spots = new[] { new Vector2(96, 452), new Vector2(62, 486), new Vector2(118, 498), new Vector2(40, 440) };
         var sparks = new Star[spots.Length]; for (int i = 0; i < spots.Length; i++) sparks[i] = new Star(sc.root, 34);
+        var pings = new Ripple[spots.Length]; for (int i = 0; i < spots.Length; i++) pings[i] = new Ripple(sc.root, 33, 2);
+        for (int i = 0; i < spots.Length; i++)
+            for (float tt = sh.start + i * 0.9f + 0.55f; tt < sh.end - 0.3f; tt += 3.6f) if (tt > sh.start + 0.3f) Sfx("ping", tt, 0.45f, i);
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
@@ -298,6 +335,8 @@ public static partial class StoryBuilder
             {
                 float k = Pulse(Mathf.Repeat(t - sh.start - i * 0.9f, 3.6f), 0.5f, 0.18f, 0.7f);
                 sparks[i].Set(Img(spots[i]), 0.35f + 0.75f * k, k, t + i, Hex("E9D4FF"));
+                float t0 = sh.start + i * 0.9f + Mathf.Floor((t - sh.start - i * 0.9f) / 3.6f) * 3.6f + 0.5f;
+                pings[i].Update(t, t0, Img(spots[i]), 3f, 30f, Hex("E9D4FF"), 0.55f, 0.8f, 0.15f);
             }
         });
     }
@@ -310,6 +349,15 @@ public static partial class StoryBuilder
         for (int i = 0; i < gates.Length; i++) { warm[i] = new Glow(sc.root, Img(gates[i]), 70, 70, 30); dim[i] = new Glow(sc.root, Img(gates[i]), 96, 96, -50, false); }
         var kid = NewKid(sc.root); var star = new Star(sc.root); var touch = new Glow(sc.root, Vector3.zero, 60, 60, 45);
         Vector3 ground = Img(292, 484), hover = Img(276, 458);
+        var smoke = new Burst[gates.Length]; var embers = new Burst[gates.Length];
+        for (int i = 0; i < gates.Length; i++)
+        {
+            smoke[i] = new Burst(sc.root, 7, 40 + i, 29, glowTex, 9f, 2.2f, 30f, 2.6f, 5f, false, 80f);
+            embers[i] = new Burst(sc.root, 9, 60 + i, 31, sparkTex, 26f, 1.3f, 9f, 0f, -34f, true, 200f);
+            Sfx("gate_off", C(7) + 0.25f + i * 0.5f, 0.6f, i);
+        }
+        var ripple = new Ripple(sc.root, 46);
+        Sfx("shimmer", C(5) + 0.3f, 0.6f); Sfx("whoosh", C(9), 0.45f); Sfx("touch", C(9) + 0.9f, 1f);
         anims.Add(t =>
         {
             bool inD = t >= d.start;
@@ -339,12 +387,16 @@ public static partial class StoryBuilder
                 star.Set(sp, 0.75f + 0.25f * bump, flick + bump, t);
                 kid.Light(sp, Blue, 0.6f + 0.4f * bump); kid.Look(sp); kid.Emote(Pulse(t, C(9) + 0.8f, 0.25f, 2.2f));
                 touch.At(tip); touch.Set(Hex("BFE8FF"), bump * 1.3f); touch.Size(40 + 50 * bump, 40 + 50 * bump);
+                ripple.Update(t, C(9) + 0.9f, tip, 2.2f, 20f, Hex("5AC8FA"), 1f, 0.95f, 0.14f);
+                Flare(sc.root.TransformPoint(tip), 0.8f * bump, Blue);
             }
             for (int i = 0; i < gates.Length; i++)
             {
                 float off = Smooth(U(t, C(7) + 0.25f + i * 0.5f, 0.45f));
                 warm[i].Set(Gold, (1f - off) * (0.55f + 0.25f * Mathf.Sin(t * 3f + i)) + Pulse(t, C(7) + 0.2f + i * 0.5f, 0.06f, 0.2f));
                 dim[i].Set(Hex("060818"), 0.78f * off);
+                float tOff = C(7) + 0.25f + i * 0.5f;
+                smoke[i].Update(t, tOff, Img(gates[i]), Hex("1A1C3A"), 0.9f); embers[i].Update(t, tOff, Img(gates[i]), Gold, 0.9f);
             }
         });
     }
@@ -356,9 +408,14 @@ public static partial class StoryBuilder
         var warm = new Glow(sc.root, Img(gates[0]), 90, 90, 30); var dim = new Glow[gates.Length];
         for (int i = 0; i < gates.Length; i++) dim[i] = new Glow(sc.root, Img(gates[i]), i == 0 || i == 4 ? 120 : 84, i == 0 || i == 4 ? 120 : 84, -50, false);
         var kid = NewKid(sc.root); var star = new Star(sc.root);
+        var smoke0 = new Burst(sc.root, 7, 81, 29, glowTex, 9f, 2.2f, 34f, 2.6f, 5f, false, 80f); var smoke3 = new Burst(sc.root, 6, 82, 29, glowTex, 8f, 2.0f, 26f, 2.6f, 5f, false, 80f);
+        var ember0 = new Burst(sc.root, 9, 83, 31, sparkTex, 26f, 1.3f, 9f, 0f, -34f, true, 200f);
+        Sfx("gate_off", C(12) + 0.5f, 0.7f, 1); Sfx("gate_off", C(13) + 0.3f, 0.55f, 3); Sfx("shrink", C(13), 0.7f);
         anims.Add(t =>
         {
             float u = U(t, sh.start, sh.end - sh.start), su = Smooth(u);
+            smoke0.Update(t, C(12) + 0.5f, Img(gates[0]), Hex("1A1C3A"), 0.9f); ember0.Update(t, C(12) + 0.5f, Img(gates[0]), Gold, 0.9f);
+            smoke3.Update(t, C(13) + 0.3f, Img(gates[3]), Hex("1A1C3A"), 0.8f);
             sc.Cam(Mathf.Lerp(500, 640, su), 312, 1.14f); sc.Tint(0.84f);
             float stop = Smooth(U(t, sh.start, C(12) + 0.5f - sh.start));
             kid.Pose(Img(Mathf.Lerp(585, 716, stop), Mathf.Lerp(396, 372, stop)), 0.92f, 1, stop < 1f ? (t - sh.start) * 2.3f : 0f, 78f);
@@ -377,6 +434,7 @@ public static partial class StoryBuilder
     static void ShotF()
     {
         var sc = sceneOf["F"] = MakeScene("F", 3, 30, 71); var sh = Sh("F");
+        Sfx("dim", C(14), 0.7f);
         var kid = NewKid(sc.root); var star = new Star(sc.root);
         anims.Add(t =>
         {
@@ -399,7 +457,7 @@ public static partial class StoryBuilder
         for (int i = 0; i < chartStars.Length; i++) chartStars[i] = new Glow(sc.root, Vector3.zero, 12, 12, 29);
         var hole = new Glow(sc.root, Img(core), 74, 74, -50, false);
         var slotMesh = new Mesh(); var slot = Part(sc.root, slotMesh, Img(core), Blue, 31).sharedMaterial;
-        var burst = new Glow(sc.root, Img(core), 200, 200, 38); var rayH = new Glow(sc.root, Img(core), 300, 10, 38); var rayV = new Glow(sc.root, Img(core), 10, 300, 38);
+        var burst = new Glow(sc.root, Img(core), 200, 200, 7); var rayH = new Glow(sc.root, Img(core), 300, 10, 38); var rayV = new Glow(sc.root, Img(core), 10, 300, 38);
         var ringMesh = new Mesh[3]; var ringMat = new Material[3]; var ringT = new Transform[3];
         float[] rr = { 66f, 52f, 38f }, tiltAt = { 20f, -35f, 70f };
         for (int i = 0; i < 3; i++) { ringMesh[i] = new Mesh(); var r = Part(sc.root, ringMesh[i], Img(core), Gold, 33); ringMat[i] = r.sharedMaterial; ringT[i] = r.transform; }
@@ -407,6 +465,10 @@ public static partial class StoryBuilder
         var kid = NewKid(sc.root); var kid2 = NewKid(sc.root); var star = new Star(sc.root);
         Vector3 seat = Img(350, 470), stairs0 = Img(716, 262), stairs1 = Img(748, 247);
         float tPlace = C(22) + 0.95f;
+        var shock = new Ripple(sc.root, 37, 2); var sparkle = new Burst(sc.root, 40, 99, 39, sparkTex, 120f, 1.7f, 16f, 0f, -22f);
+        var chartRipple = new Ripple(sc.root, 30, 2);
+        Sfx("rise", C(17), 0.6f); Sfx("chart", C(18) - 0.2f, 0.8f); Sfx("whoosh", C(19), 0.6f); Sfx("rise", h.start + 0.2f, 0.4f);
+        Sfx("place", tPlace, 1f); Sfx("whirr", tPlace + 0.25f, 0.6f);
         anims.Add(t =>
         {
             bool inH = t >= h.start;
@@ -454,6 +516,10 @@ public static partial class StoryBuilder
             if (inH && zoom > 0.6f) kid.Hide(); else kid.Pose(seat, 1.0f, 1, 0f, Mathf.Lerp(58f, 118f, rise) * (1f - 0.5f * standUp), 1f - standUp);
 
             float flash = Pulse(t, tPlace, 0.12f, 1.1f);
+            shock.Update(t, tPlace, Img(core), 8f, 190f, Hex("BFE8FF"), 0.5f, 1.4f, 0.2f);
+            sparkle.Update(t, tPlace, Img(core), Hex("DDF2FF"), 1f);
+            chartRipple.Update(t, C(18) - 0.2f, Img(chart), 20f, 150f, Gold, 0.5f, 1.6f, 0.3f);
+            Flare(sc.root.TransformPoint(Img(core)), 0.9f * flash, Blue);
             burst.Set(Blue, flash * 1.5f + placed * (0.55f + 0.15f * Mathf.Sin(t * 4f))); burst.Size(120 + 240 * flash, 120 + 240 * flash);
             rayH.Set(Hex("BFE8FF"), flash * 1.3f + placed * 0.35f); rayV.Set(Hex("BFE8FF"), flash * 1.3f + placed * 0.35f);
             // Rings ease into rotation; each is a circle turning about an in-plane axis, so it shows as a breathing ellipse.
@@ -479,6 +545,8 @@ public static partial class StoryBuilder
         var flow = new Glow[22]; for (int i = 0; i < flow.Length; i++) flow[i] = new Glow(sc.root, Vector3.zero, 44, 44, 30);
         var wash = new Glow(sc.root, Img(600, 380), 520, 300, 27);
         var wink = new Star(sc.root, 44); var kid = NewKid(sc.root);
+        var ribbon = new Flow(sc.root, river, 26f, 29); var winkRipple = new Ripple(sc.root, 45);
+        Sfx("weave", C(24) - 0.2f, 0.7f); Sfx("wink", C(26) + 0.55f, 0.8f); Sfx("home", C(27), 0.55f);
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
@@ -493,8 +561,11 @@ public static partial class StoryBuilder
                 float sz = 36f + 30f * pos + 14f * home; flow[i].Size(sz, sz);
             }
             wash.Set(Blue, 0.16f * Smooth(weave) + 0.22f * home);
+            ribbon.Update(t, weave * 1.05f, Hex("8FD0FF"), 0.55f + 0.5f * home);
             float k = Pulse(t, C(26) + 0.55f, 0.14f, 0.9f);
             wink.Set(Img(778, 128), 0.45f + 0.8f * k, 0.22f + 0.75f * k, t, Hex("BFE8FF"));
+            winkRipple.Update(t, C(26) + 0.55f, Img(778, 128), 4f, 46f, Hex("BFE8FF"), 0.9f);
+            Flare(sc.root.TransformPoint(Img(778, 128)), 0.9f * k, Hex("BFE8FF"));
             float wave = Pulse(t, C(26) + 0.9f, 0.3f, 1.6f);
             kid.Pose(Img(480, 477), 0.9f, 1, 0f, 20f + wave * (125f + 18f * Mathf.Sin(t * 11f)));
             kid.Light(Img(778, 128), Hex("BFE8FF"), 0.35f + 0.5f * k + 0.25f * home); kid.Look(Img(778, 128), 0.6f); kid.Emote(0.8f * wave);
@@ -521,7 +592,10 @@ public static partial class StoryBuilder
         TL = JsonUtility.FromJson<Timeline>(File.ReadAllText(Environment.GetEnvironmentVariable("STORY_TIMELINE"))); DUR = TL.duration;
 
         ShotA(); ShotB(); ShotCD(); ShotE(); ShotF(); ShotGH(); ShotI();
+        foreach (var s in TL.shots) if (s.start > 0f && s.id != "H") Sfx("swish", s.start - 0.2f, 0.35f);
+        BuildFx();
         BuildOverlays();
+        WriteSfx();
     }
 
     // Empty scene, shaders, font, glow texture and the orthographic camera sized to W x H.
@@ -530,7 +604,7 @@ public static partial class StoryBuilder
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         anims.Clear(); scenes.Clear(); sceneOf.Clear();
         ShaderUtil.allowAsyncCompilation = false;
-        LoadCharacterSpec();
+        LoadCharacterSpec(); starSeed = 0;
         flat = Shader.Find("Sprites/Default");
         add = Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Mobile/Particles/Additive") ?? flat;
         Debug.Log("[Story] additive shader: " + add.name);
@@ -543,6 +617,7 @@ public static partial class StoryBuilder
             glowTex.SetPixel(x, y, new Color(1, 1, 1, a));
         }
         glowTex.Apply();
+        InitFxTextures();
 
         cam = new GameObject("Cam").AddComponent<Camera>();
         cam.orthographic = true; cam.orthographicSize = H / 2f; cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Night;
@@ -571,6 +646,7 @@ public static partial class StoryBuilder
         Scene current = null; string id = null;
         foreach (var s in TL.shots) if (t >= s.start) { current = sceneOf[s.id]; id = s.id; }
         foreach (var s in scenes) s.root.gameObject.SetActive(s == current);
+        ShotNow = id; SceneNow = current; flareK = 0f;
         foreach (var a in anims) a(t);
         float dip = Mathf.Max(1f - t / 0.5f, 1f - (DUR - t) / 0.7f);
         foreach (var s in TL.shots)

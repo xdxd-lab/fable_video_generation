@@ -7,7 +7,7 @@ ROOT="${0:A:h:h}"; NAME="$1"; FORMAT="${2:-vertical}"
 UNITY="${UNITY:-/Applications/Unity/Hub/Editor/6000.3.27f1/Unity.app/Contents/MacOS/Unity}"
 export STORY_FORMAT="$FORMAT" REEL_OUT="$ROOT/output/$NAME/$FORMAT" REEL_STILLS="$3" REEL_FFMPEG="$(command -v ffmpeg)"
 export STORY_REFS="$ROOT/stories/$NAME/refs_2x" STORY_TIMELINE="$ROOT/output/$NAME/timeline.json"
-export STORY_CHARACTER="${STORY_CHARACTER:-v1}" STORY_CHARACTER_SPEC="$ROOT/stories/$NAME/characters/cheng.json"
+export STORY_CHARACTER="${STORY_CHARACTER:-v1}" STORY_CHARACTER_SPEC="$ROOT/stories/$NAME/characters/cheng.json" STORY_SFX_OUT="$ROOT/output/$NAME/sfx.json"
 mkdir -p "$REEL_OUT"
 LOG="$REEL_OUT/unity-render.log"
 "$UNITY" -batchmode -projectPath "$ROOT/unity" -executeMethod StoryBuilder.Render -logFile "$LOG" || {

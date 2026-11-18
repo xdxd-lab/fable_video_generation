@@ -4,7 +4,7 @@
   python3 scripts/story.py <name>                      everything, both formats
   python3 scripts/story.py <name> all -f horizontal    everything, one format
   python3 scripts/story.py <name> timeline             output/<name>/narration.wav + timeline.json
-  python3 scripts/story.py <name> mix                  output/<name>/mix.wav (narration + ducked music, if spec.music)
+  python3 scripts/story.py <name> mix                  output/<name>/mix.wav (narration + ducked music and sound effects)
   python3 scripts/story.py <name> render -f vertical   output/<name>/vertical/unity_render.mp4
   python3 scripts/story.py <name> render -f vertical --stills 3,20
   python3 scripts/story.py <name> final -f vertical    output/<name>/vertical/final.mp4
@@ -14,6 +14,7 @@ Cue timing comes from the synthesized audio, so pictures, voice and subtitles sh
 across both formats; only the picture framing and subtitle layout differ.
 """
 import argparse, json, os, subprocess, sys
+import sfx as sfxlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -102,28 +103,46 @@ def lufs_stats(path, af=""):
 
 
 def mix():
-    """Narration over a music bed that ducks under the voice, mastered to -14 LUFS / -1.5 dBTP.
+    """Narration over a music bed and a sound-effect bus, both ducking under the voice; mastered to -14 LUFS / -1.5 dBTP.
     spec.music: {"file", "start" (s into track), "bed" (LUFS of the bed before ducking), "duck_ratio", ...credits}.
-    Without spec.music the mix is the narration alone."""
+    spec.sfx:   {"level" (LUFS of the effects bus), "duck_ratio"}; cues come from output/<name>/sfx.json (Unity build).
+    Without spec.music / spec.sfx those layers are left out."""
     narr, out = OUT / "narration.wav", OUT / "mix.wav"
     if not narr.exists():
         sys.exit("narration.wav missing; run the timeline step first")
-    m = SPEC.get("music")
-    if not m:
-        pad_to(narr, out); print(out, "(no music)"); return out
-    src, start, bed = ROOT / m["file"], m.get("start", 0.0), m.get("bed", -27.0)
+    m, fx = SPEC.get("music"), SPEC.get("sfx")
+    sheet = OUT / "sfx.json"
+    if fx and not sheet.exists():
+        print("sfx.json missing (run the render step first); mixing without effects"); fx = None
+    if not m and not fx:
+        pad_to(narr, out); print(out, "(narration only)"); return out
+    m = m or {"file": None}
+    src, start, bed = (ROOT / m["file"]) if m["file"] else None, m.get("start", 0.0), m.get("bed", -27.0)
     fade_in, fade_out = m.get("fade_in", 1.5), m.get("fade_out", 3.0)
     duck_ratio = m.get("duck_ratio", 2.5)
     seg = f"atrim={start}:{start + DUR},asetpts=PTS-STARTPTS,aresample=48000"
-    gain = bed - float(lufs_stats(src, seg)["input_i"])
-    music = (f"[1:a]{seg},aformat=channel_layouts=stereo,volume={gain:.2f}dB,"
-             f"afade=t=in:d={fade_in},afade=t=out:st={DUR - fade_out}:d={fade_out}[m]")
-    # duck under the voice (ratio 2.5 ~ 8.7 dB, 1.6 ~ 5 dB); slow release so the bed swells back between lines
-    duck = ("[0:a]asplit[v][sc];"
-            f"[m][sc]sidechaincompress=threshold=0.05:ratio={duck_ratio}:attack=40:release=700[md];"
-            "[v][md]amix=inputs=2:normalize=0[pre]")
+    ins, chains, beds, note = ["-i", narr], [], [], []
+    if src:
+        gain = bed - float(lufs_stats(src, seg)["input_i"])
+        ins += ["-i", src]; k = len(ins) // 2 - 1
+        chains.append(f"[{k}:a]{seg},aformat=channel_layouts=stereo,volume={gain:.2f}dB,"
+                      f"afade=t=in:d={fade_in},afade=t=out:st={DUR - fade_out}:d={fade_out}[m0]")
+        # duck under the voice (ratio 2.5 ~ 8.7 dB, 1.4 ~ 4 dB); slow release so the bed swells back between lines
+        beds.append(("m0", f"sidechaincompress=threshold=0.05:ratio={duck_ratio}:attack=40:release=700"))
+        note.append(f"music gain {gain:+.1f} dB -> bed {bed} LUFS")
+    if fx:
+        bus = sfxlib.build_bus(sheet, OUT, DUR)
+        level = fx.get("level", -24.0); g = level - float(lufs_stats(bus)["input_i"])
+        ins += ["-i", bus]; k = len(ins) // 2 - 1
+        chains.append(f"[{k}:a]volume={g:.2f}dB[x0]")
+        beds.append(("x0", f"sidechaincompress=threshold=0.05:ratio={fx.get('duck_ratio', 1.5)}:attack=15:release=350"))
+        note.append(f"sfx gain {g:+.1f} dB -> {level} LUFS")
+    n = len(beds)
+    graph = chains + [f"[0:a]asplit={n + 1}[v]" + "".join(f"[sc{i}]" for i in range(n))]
+    for i, (lab, comp) in enumerate(beds): graph.append(f"[{lab}][sc{i}]{comp}[d{i}]")
+    graph.append("[v]" + "".join(f"[d{i}]" for i in range(n)) + f"amix=inputs={n + 1}:normalize=0[pre]")
     pre = OUT / "mix_pre.wav"
-    run("ffmpeg", "-v", "error", "-y", "-i", narr, "-i", src, "-filter_complex", f"{music};{duck}",
+    run("ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", ";".join(graph),
         "-map", "[pre]", "-ar", "48000", "-ac", "2", "-t", DUR, pre)
     st = lufs_stats(pre)   # second loudnorm pass in linear mode keeps the dynamics, just sets the level
     run("ffmpeg", "-v", "error", "-y", "-i", pre, "-af",
@@ -132,7 +151,7 @@ def mix():
         "-ar", "48000", "-ac", "2", pre.with_name("mix_ln.wav"))
     pad_to(pre.with_name("mix_ln.wav"), out)
     pre.unlink(); pre.with_name("mix_ln.wav").unlink()
-    print(out, f"music gain {gain:+.1f} dB -> bed {bed} LUFS")
+    print(out, "; ".join(note))
     return out
 
 
@@ -219,11 +238,12 @@ def main():
     fmts = list(FORMATS) if a.format == "both" else [a.format]
     if a.step in ("all", "timeline"):
         timeline()
+    for f in fmts:                      # render first: the Unity build writes the sound-effect cue sheet
+        if a.step in ("all", "render"):
+            render(f, a.stills)
     if a.step in ("all", "mix") and not a.stills:
         mix()
     for f in fmts:
-        if a.step in ("all", "render"):
-            render(f, a.stills)
         if a.step in ("all", "final") and not a.stills:
             final(f)
 
