@@ -62,7 +62,7 @@
 ## 商業化打磨（2026-11-19）
 提交：48e4521、d068d3e、d96c05b。目前 `output/star_city` 成品以 `--character v3` 算圖。
 - 角色 v3：場景打光與輪廓光、曲線造型、半透明零件、看向目標與表情、尺寸 1.25（細節見 `docs/character-pipeline.md`）
-- 特效（`StoryBuilder.Fx.cs`）：螢幕空間的光束、霧帶、散景、塵粒、暈影、鏡頭光斑（sort 850–880）；事件特效含 mtk-viewer 風格漣漪、無狀態粒子爆發（星門煙與餘燼、放置火花）、河流絲帶、星座連線；星星帶塵粒、閃光與半透明光環；直式字幕面板改為毛玻璃（背景模糊鏡射加半透明底色）；橫式 B/F/I 鏡頭構圖上移
+- 特效（`StoryBuilder.Fx.cs`）：螢幕空間的光束、霧帶、散景、塵粒、暈影、鏡頭光斑（sort 850–880）；事件特效含 mtk-viewer 風格漣漪、無狀態粒子爆發（星門煙與餘燼、放置火花）、河流絲帶、星座連線；星星帶塵粒、閃光與半透明光環；直式字幕面板改為毛玻璃（背景模糊鏡射加半透明底色）；橫式 B/C/F/G/I 鏡頭構圖上移讓腳不碰字幕（F 另外拉近）；21.8 秒碰觸與 48.9 秒放回的光量調降；袖子改成圓弧袖口
 - 音效：Unity 算圖寫出 `output/<name>/sfx.json`（約 58 個提示，含腳步）；`scripts/sfx.py` 只用 ffmpeg 合成 18 種音效，各自峰值正規化、依 `TRIM` 微調、加殘響後組成音效軌；`story.py mix` 依 `spec.sfx`（level -20 LUFS、duck_ratio 1.3）疊在配樂旁；`all` 現在先 render 再 mix；最後限幅器 -2.2 dBFS 讓 AAC true peak 不超過 -1.5 dBTP，成品 -14 LUFS
 - A/B 對照：`output/star_city/compare/ab_horizontal.mp4`、`ab_vertical.mp4`（打磨前版本在 `output/star_city/compare/before_polish/`）
 - 待使用者決定：v3 是否改為預設角色；聽過之後特效與音效、配樂的音量是否再調

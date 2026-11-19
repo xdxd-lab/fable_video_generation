@@ -62,7 +62,7 @@ public static partial class StoryBuilder
             float x = Mathf.Abs(u * 2f - 1f), y = Mathf.Abs(v * 2f - 1f);
             return Mathf.Exp(-y * 26f) * Mathf.Exp(-x * 3.2f) + Mathf.Exp(-x * 26f) * Mathf.Exp(-y * 3.2f) + Mathf.Exp(-(x * x + y * y) * 22f);
         });
-        bokehTex = MakeTex(128, 128, (u, v) => { float r = new Vector2(u - 0.5f, v - 0.5f).magnitude * 2f; return Mathf.SmoothStep(0f, 1f, (1f - r) / 0.07f) * (0.55f + 0.45f * Mathf.SmoothStep(0f, 1f, (r - 0.55f) / 0.4f)); });
+        bokehTex = MakeTex(128, 128, (u, v) => { float r = new Vector2(u - 0.5f, v - 0.5f).magnitude * 2f; return Mathf.SmoothStep(0f, 1f, (1f - r) / 0.3f) * (0.7f + 0.3f * Mathf.SmoothStep(0f, 1f, (r - 0.45f) / 0.4f)); });
         stripeTex = MakeTex(128, 32, (u, v) => Mathf.Pow(0.5f + 0.5f * Mathf.Sin(u * Mathf.PI * 2f), 3f) * Gauss(v - 0.5f, 0.32f), TextureWrapMode.Repeat);
     }
 

@@ -254,18 +254,21 @@ public static partial class StoryBuilder
 
             // near arm: shoulder at (7.5,31); hand lands at (0,-16.5) in arm space, as in v1/v2
             arm = Pivot(upper, 7.5f, 31f); armU = Pivot(arm, 0, 0); armF = Pivot(arm, 0, -8.25f);
-            Shape(armU, Sleeve(5.0f, 5.4f, 8.8f), Hex(S.robeLight), ARM, outlineOrder: ARM - 1, rim: true, bottom: Hex(S.robe));
-            Shape(armF, Sleeve(5.2f, 7.0f, 6.9f), Hex(S.robeLight), ARM, outlineOrder: ARM - 1, rim: true, bottom: Hex(S.robe));
+            Shape(armU, Sleeve(5.6f, 5.0f, 8.8f), Hex(S.robeLight), ARM, outlineOrder: ARM - 1, rim: true, bottom: Hex(S.robe));
+            Shape(armF, Sleeve(5.0f, 7.2f, 6.2f), Hex(S.robeLight), ARM, outlineOrder: ARM - 1, rim: true, bottom: Hex(S.robe));
             Shape(armF, Oval(0, 0, 2.7f, 2.7f, 18), Hex(S.robeLight), ARM, outlineOrder: ARM - 1);
-            Tinted(Part(armF, Shp(V(-3.6f, -5.4f, 3.6f, -5.4f, 3.7f, -7.1f, -3.7f, -7.1f), Hex(S.trim), Hex(S.trimDark)), Vector3.zero, White, ARM + 1));
+            Tinted(Part(armF, Shp(Pts(Bz(new Vector2(-3.45f, -4.7f), new Vector2(0, -5.5f), new Vector2(3.45f, -4.7f), 4), Bz(new Vector2(3.65f, -6.2f), new Vector2(0, -7.3f), new Vector2(-3.65f, -6.2f), 4)), Hex(S.trim), Hex(S.trimDark)), Vector3.zero, White, ARM + 1));
             Shape(armF, Oval(0, -8.25f, 3.0f, 3.1f, 18), Hex(S.skin), ARM + 1, outlineOrder: ARM - 1);
             Shape(armF, Oval(1.9f, -7.2f, 1.2f, 1.6f, 12), Hex(S.skin), ARM + 1, outlineOrder: ARM - 1);   // thumb
         }
 
         static Transform Pivot(Transform p, float x, float y) { var t = new GameObject("pivot") { layer = UI }.transform; t.SetParent(p, false); t.localPosition = new Vector3(x, y); return t; }
+        // Sleeve with a rounded shoulder and a rounded cuff, so bent arms read as cloth rather than boxes.
         static List<Vector2> Sleeve(float wTop, float wEnd, float len) =>
-            Pts(V(-wTop / 2, 0.6f, wTop / 2, 0.6f), Bz(new Vector2(wTop / 2, 0.6f), new Vector2(wTop / 2 + 0.4f, -len / 2), new Vector2(wEnd / 2, -len), 4),
-                 Bz(new Vector2(-wEnd / 2, -len), new Vector2(-wTop / 2 - 0.4f, -len / 2), new Vector2(-wTop / 2, 0.6f), 4));
+            Pts(Bz(new Vector2(-wTop / 2, 0.6f), new Vector2(0, 2.0f), new Vector2(wTop / 2, 0.6f), 4),
+                Bz(new Vector2(wTop / 2, 0.6f), new Vector2(wTop / 2 + 0.5f, -len / 2), new Vector2(wEnd / 2, -len), 5),
+                Bz(new Vector2(wEnd / 2, -len), new Vector2(0, -len - 1.6f), new Vector2(-wEnd / 2, -len), 5),
+                Bz(new Vector2(-wEnd / 2, -len), new Vector2(-wTop / 2 - 0.5f, -len / 2), new Vector2(-wTop / 2, 0.6f), 5));
 
         MeshRenderer Tinted(MeshRenderer r) { tinted.Add((r.sharedMaterial, r.sharedMaterial.color)); return r; }
         void Fill(Transform p, List<Vector2> pts, Color c, int order) => Tinted(Part(p, Shp(pts), Vector3.zero, c, order));
@@ -307,7 +310,7 @@ public static partial class StoryBuilder
 
             // near arm: elbow bends back more when the arm hangs, less when reaching
             arm.localRotation = Quaternion.Euler(0, 0, armDeg);
-            Bend(armU, armF, -Mathf.Lerp(2.6f, 0.9f, Mathf.Abs(Mathf.Sin(armDeg * Mathf.Deg2Rad))), 8.25f);
+            Bend(armU, armF, -Mathf.Lerp(2.8f, 1.7f, Mathf.Abs(Mathf.Sin(armDeg * Mathf.Deg2Rad))), 8.25f);
             back.localRotation = Quaternion.Euler(0, 0, -swing * 0.7f * (1f - sit) + 30f * sit + 12f * tip + 3f * Mathf.Sin(t * 1.3f));
             Bend(backU, backF, -2.2f, 8f);
 
