@@ -226,15 +226,16 @@ def main():
     ap.add_argument("step", nargs="?", default="all", choices=["all", "timeline", "mix", "render", "final"])
     ap.add_argument("-f", "--format", default="both", choices=[*FORMATS, "both"])
     ap.add_argument("--stills", help="comma-separated seconds; render step only, writes PNGs instead of video")
-    ap.add_argument("--character", default="v1", choices=["v1", "v2", "v3"], help="apprentice design (v2 refined, v3 lit + polished; under review)")
+    ap.add_argument("--character", choices=["v1", "v2", "v3"], help="apprentice design; default: spec.character in story.json, else v1")
     a = ap.parse_args()
     os.chdir(ROOT)
-    os.environ["STORY_CHARACTER"] = a.character
     NAME = a.name
     SDIR, OUT = ROOT / "stories" / NAME, ROOT / "output" / NAME
     S = json.loads((SDIR / "story.json").read_text(encoding="utf-8"))
     SPEC, CUES = S["spec"], S["cues"]
     FPS, DUR = SPEC["fps"], SPEC["duration"]
+    os.environ["STORY_CHARACTER"] = a.character or SPEC.get("character", "v1")
+    print("character", os.environ["STORY_CHARACTER"])
     fmts = list(FORMATS) if a.format == "both" else [a.format]
     if a.step in ("all", "timeline"):
         timeline()

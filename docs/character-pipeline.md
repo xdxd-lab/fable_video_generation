@@ -39,7 +39,7 @@
 
 ## v3（2026-11-19）
 
-用法：`python3 scripts/story.py star_city --character v3`（預設仍是 v1，是否改預設待使用者決定；目前 `output/star_city` 成品以 v3 算圖）。程式在 `unity/Assets/Editor/StoryBuilder.Apprentice3.cs`，仍沿用 `Kid` 契約，手繪出的手落在 `Hand()` 上。
+用法：`python3 scripts/story.py star_city --character v3`（星辰城已由 `story.json` 的 `spec.character` 設為預設 v3；未指定的故事仍用 v1）。程式在 `unity/Assets/Editor/StoryBuilder.Apprentice3.cs`，仍沿用 `Kid` 契約，手繪出的手落在 `Hand()` 上。
 
 - **場景打光**：填色乘上由背景色調取出的環境色；底下多放一份輪廓偏移的複製當輪廓光，朝光源偏移。分鏡可呼叫 `Light()`、`Look()`、`Emote()`（v1/v2 為空操作）。
 - **造型**：貝茲曲線、耳切法三角化、沿法線外擴的描邊（凹形也安全，不必再拆凸塊）。

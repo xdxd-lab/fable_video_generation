@@ -350,13 +350,13 @@ public static partial class StoryBuilder
 
         void CapeAndTails(float t, float walk, float moving)
         {
-            var line = new List<Vector2>(); Vector2 p = Vector2.zero; const int n = 10; const float L = 29f;
+            var line = new List<Vector2>(); Vector2 p = Vector2.zero; const int n = 10; const float L = 33f;
             for (int i = 0; i <= n; i++)
             {
                 float s = i / (float)n, th = (18f + 26f * moving + 5f * Mathf.Sin(t * 1.7f - s * 2.4f) + 6f * moving * Mathf.Sin(walk * Mathf.PI * 2f - s * 3f)) * Mathf.Deg2Rad * s;
                 line.Add(p); p += new Vector2(-Mathf.Sin(th), -Mathf.Cos(th)) * (L / n);
             }
-            Ribbon(cape, line, 9f, 21f, new Color(0.86f, 0.80f, 1f, 0.55f), new Color(0.70f, 0.78f, 1f, 0.10f));
+            Ribbon(cape, line, 12f, 27f, new Color(0.88f, 0.82f, 1f, 0.80f), new Color(0.72f, 0.80f, 1f, 0.35f));
             for (int k = 0; k < 2; k++)
             {
                 var tl = new List<Vector2>(); Vector2 q = new Vector2(0, k * -1.2f); float len = k == 0 ? 11f : 8.5f;
