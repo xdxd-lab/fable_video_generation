@@ -78,7 +78,8 @@ python3 scripts/story.py star_city render -f vertical --stills 3,20
 ```
 output/star_city/narration.wav
 output/star_city/timeline.json
-output/star_city/mix.wav                     旁白＋配樂混音（成品使用的音軌）
+output/star_city/sfx.json                    音效提示表（Unity 算圖時寫出）
+output/star_city/mix.wav                     旁白＋配樂＋音效混音（成品使用的音軌）
 output/star_city/<format>/unity_render.mp4   Unity 算圖（無字幕、無聲）
 output/star_city/<format>/subtitles.ass
 output/star_city/<format>/final.mp4          成品
@@ -102,8 +103,10 @@ script.json                    30 秒片的分鏡與雙語台詞
 stories/star_city/story.json   故事短片的分鏡與雙語台詞
 stories/star_city/refs/        六張原始場景圖（Git LFS）
 stories/star_city/refs_2x/     放大兩倍後交給 Unity 的版本（Git LFS）
-scripts/                       旁白、字幕、算圖與合成腳本（story.py 為故事短片的一鍵入口）
+scripts/                       旁白、字幕、算圖與合成腳本（story.py 為故事短片的一鍵入口；sfx.py 合成音效）
 unity/Assets/Editor/           ReelBuilder.cs、StoryBuilder.cs：以程式建場景並逐格算圖
+                               StoryBuilder.Apprentice.cs / .Apprentice3.cs：角色 v1、v2 / v3
+                               StoryBuilder.Fx.cs：氛圍與事件特效、音效提示表
 docs/plan.md                   製作計畫、技術細節與踩過的坑
 ```
 
@@ -114,7 +117,9 @@ docs/plan.md                   製作計畫、技術細節與踩過的坑
 - **可重現的算圖**：不用 Recorder，也不進 Play 模式。每個動畫都是時間的純函數，逐格 `Camera.Render()` 後把像素直接送進 ffmpeg，同樣的輸入永遠得到同樣的影片。
 - **觸控視覺**：觸控效果沿用 mtk-viewer 的風格，以圓點加上向外擴散的圓圈呈現。
 
-- **角色版本**：阿澄有 v1（目前預設）與 v2（精修版，審核中）。加上 `--character v2` 可改用新版，`scripts/character_sheet.sh star_city` 可輸出兩版並排的角色設定表。流程見 [`docs/character-pipeline.md`](docs/character-pipeline.md)。
+- **角色版本**：阿澄有 v1（目前預設）、v2（精修版）與 v3（場景打光、曲線造型、看向目標與表情）。加上 `--character v2` 或 `--character v3` 可改用新版（目前 `output/star_city` 成品以 v3 算圖，是否改為預設待使用者決定），`scripts/character_sheet.sh star_city` 可輸出 v1/v2/v3 並排的角色設定表。流程見 [`docs/character-pipeline.md`](docs/character-pipeline.md)。
+- **氛圍與事件特效**：`StoryBuilder.Fx.cs` 提供光束、霧帶、散景、塵粒、暈影、鏡頭光斑，以及 mtk-viewer 風格的漣漪、粒子爆發、河流與星座連線；直式字幕面板為毛玻璃（背景模糊鏡射加半透明底色）。
+- **程式合成音效**：Unity 算圖時寫出 `output/<name>/sfx.json`（音效提示表），`scripts/sfx.py` 只用 ffmpeg 合成音效（沒有取樣檔、無授權問題），`story.py mix` 依 `spec.sfx` 把音效疊在配樂旁，成品仍為 -14 LUFS。
 
 更多細節見 [`docs/plan.md`](docs/plan.md)。
 

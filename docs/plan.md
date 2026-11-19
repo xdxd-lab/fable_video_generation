@@ -58,3 +58,12 @@
 - 由 `story.json` 的 `spec.music` 驅動；省略 `spec.music` 就只有旁白，不加配樂
 - 第一版 bed -27、ratio 2.5 時配樂在旁白下約 23 dB，使用者試聽幾乎聽不到；旁白佔全片 83%，所以「旁白下的配樂音量」才是決定性的指標，背景配樂一般抓在旁白下 9–12 dB
 - loudnorm 之後在同一個濾鏡鏈接 apad/atrim 仍會短約 94 ms，改用獨立的 ffmpeg 步驟補滿到片長（`pad_to`）
+
+## 商業化打磨（2026-11-19）
+提交：48e4521、d068d3e、d96c05b。目前 `output/star_city` 成品以 `--character v3` 算圖。
+- 角色 v3：場景打光與輪廓光、曲線造型、半透明零件、看向目標與表情、尺寸 1.25（細節見 `docs/character-pipeline.md`）
+- 特效（`StoryBuilder.Fx.cs`）：螢幕空間的光束、霧帶、散景、塵粒、暈影、鏡頭光斑（sort 850–880）；事件特效含 mtk-viewer 風格漣漪、無狀態粒子爆發（星門煙與餘燼、放置火花）、河流絲帶、星座連線；星星帶塵粒、閃光與半透明光環；直式字幕面板改為毛玻璃（背景模糊鏡射加半透明底色）；橫式 B/F/I 鏡頭構圖上移
+- 音效：Unity 算圖寫出 `output/<name>/sfx.json`（約 58 個提示，含腳步）；`scripts/sfx.py` 只用 ffmpeg 合成 18 種音效，各自峰值正規化、依 `TRIM` 微調、加殘響後組成音效軌；`story.py mix` 依 `spec.sfx`（level -20 LUFS、duck_ratio 1.3）疊在配樂旁；`all` 現在先 render 再 mix；最後限幅器 -2.2 dBFS 讓 AAC true peak 不超過 -1.5 dBTP，成品 -14 LUFS
+- A/B 對照：`output/star_city/compare/ab_horizontal.mp4`、`ab_vertical.mp4`（打磨前版本在 `output/star_city/compare/before_polish/`）
+- 待使用者決定：v3 是否改為預設角色；聽過之後特效與音效、配樂的音量是否再調
+
