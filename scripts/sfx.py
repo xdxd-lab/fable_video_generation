@@ -11,6 +11,9 @@ import json, math, subprocess
 from pathlib import Path
 
 SR = 48000
+# Mix-time balance per sound (multiplies the cue gain from the Unity build), tuned against the voice:
+# low or noisy sounds need more level to read under speech than bright chimes do.
+TRIM = {"whoosh": 1.8, "gate_off": 1.3, "dim": 1.4, "home": 1.6, "step": 1.3, "place": 0.85}
 BELL = ((1.0, 1.0), (2.76, 0.42), (5.40, 0.20), (8.93, 0.10))
 
 
@@ -45,6 +48,10 @@ def recipe(name, v):
     if name == "ping":                                             # crystal being polished
         f = 2093 * pent[v % 5]
         return 1.6, [_tone("+".join([_bell(f, 0.55, 0.30), _bell(f * 2, 0.25, 0.10, 0.03)]), 1.6)]
+    if name == "step":                                             # soft footstep on crystal rock
+        f = 4700 + 600 * v
+        return 0.5, [_noise(0.5, 2400 + 400 * v, 1.2, "exp(-t/0.035)*min(t/0.002,1)", 0.7, 71 + v),
+                     _tone(f"0.5*sin(2*PI*{140 + 15 * v}*t)*exp(-t/0.045)*(1-exp(-t/0.002))+" + _bell(f, 0.09, 0.12), 0.5)]
     if name == "glint":                                            # title sparkle
         return 1.2, [_tone("+".join(_bell(f, 0.35, 0.16, i * 0.07) for i, f in enumerate((4186, 5274, 6272))), 1.2)]
     if name == "riser":                                            # opening swell
@@ -64,7 +71,7 @@ def recipe(name, v):
                                      "0.10*sin(2*PI*523.25*t)*exp(-t/1.2)*(1-exp(-t/0.01))"]), 3.0)]
     if name == "gate_off":                                         # a star gate goes dark
         f = 330 * (1 - 0.06 * v)
-        return 1.6, [_tone(_glide(f, f / 2, 0.6, 0.22, 0.6), 1.6),
+        return 1.6, [_tone(_glide(f, f / 2, 0.6, 0.22, 0.6) + "+" + _glide(4200 - 150 * v, 2100, 0.5, 0.05, 0.35), 1.6),
                      _noise(1.6, 400, 1.5, "0.7*exp(-t/0.35)*min(t/0.02,1)", 0.6, 31 + v)]
     if name == "shrink":
         return 1.6, [_tone(_glide(1400, 620, 0.9, 0.16, 0.9) + "+" + _glide(2100, 930, 0.9, 0.06, 0.7), 1.6)]
@@ -126,7 +133,7 @@ def build_bus(sheet, workdir, dur):
     for i, c in enumerate(cues):
         ins += ["-i", str(files[(c["name"], c.get("variant", 0))])]
         ms = int(round(c["t"] * 1000))
-        flt.append(f"[{i}:a]volume={c.get('gain', 1.0):.3f},adelay={ms}:all=1[c{i}]")
+        flt.append(f"[{i}:a]volume={c.get('gain', 1.0) * TRIM.get(c['name'], 1.0):.3f},adelay={ms}:all=1[c{i}]")
     flt.append(f"{''.join(f'[c{i}]' for i in range(len(cues)))}amix=inputs={len(cues)}:normalize=0,"
                "aformat=channel_layouts=stereo,aecho=0.8:0.55:41|67|103|151:0.28|0.22|0.16|0.11,"
                f"apad=whole_dur={dur},atrim=0:{dur}[out]")

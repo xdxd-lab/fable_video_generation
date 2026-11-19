@@ -186,7 +186,7 @@ public static partial class StoryBuilder
     // ---------- picture scenes ----------
     class Scene
     {
-        public Transform root; public Material bg;
+        public Transform root; public Material bg; public Texture2D blur;
         public void Cam(float cx, float cy, float zoom)
         {
             float s = S0 * zoom * ZK;
@@ -197,6 +197,27 @@ public static partial class StoryBuilder
         public void Tint(float v) => bg.color = new Color(v * (0.86f + 0.14f * v), v * (0.88f + 0.12f * v), Mathf.Lerp(v, 1f, 0.35f), 1f);
     }
 
+    // Small, box-blurred copy of a backdrop; bilinear upscaling of it reads as frosted glass.
+    static Texture2D Blurred(Texture2D src, int w, int h)
+    {
+        var a = new Color[w * h];
+        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) a[y * w + x] = src.GetPixelBilinear((x + 0.5f) / w, (y + 0.5f) / h);
+        for (int pass = 0; pass < 3; pass++)
+        {
+            var b = new Color[w * h];
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+            {
+                Color c = Color.clear; int n = 0;
+                for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                { int xx = Mathf.Clamp(x + dx, 0, w - 1), yy = Mathf.Clamp(y + dy, 0, h - 1); c += a[yy * w + xx]; n++; }
+                b[y * w + x] = c / n;
+            }
+            a = b;
+        }
+        var t = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+        t.SetPixels(a); t.Apply(); return t;
+    }
+
     static Scene MakeScene(string key, int image, int twinkles, int seed)
     {
         var s = new Scene { root = new GameObject("Scene" + key) { layer = UI }.transform };
@@ -204,6 +225,7 @@ public static partial class StoryBuilder
         tex.LoadImage(File.ReadAllBytes(Path.Combine(Environment.GetEnvironmentVariable("STORY_REFS"), "Image_" + image + ".png")));
         tex.wrapMode = TextureWrapMode.Clamp; tex.filterMode = FilterMode.Trilinear; tex.anisoLevel = 4;
         s.bg = Part(s.root, Quad(IW, IH), Vector3.zero, White, -100, null, tex).sharedMaterial;
+        s.blur = Blurred(tex, 64, 36);
         var rnd = new System.Random(seed);
         var cols = new[] { White, Hex("BFE8FF"), Hex("E6C8FF"), Hex("FFE6B0") };
         for (int i = 0; i < twinkles; i++)
@@ -327,7 +349,7 @@ public static partial class StoryBuilder
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
-            sc.Cam(Mathf.Lerp(206, 236, u), 330, 1.16f); sc.Tint(1f);
+            sc.Cam(Mathf.Lerp(206, 236, u), Wide ? 354 : 330, 1.16f); sc.Tint(1f);
             float rub = Mathf.Sin(t * 10f);
             kid.Pose(Img(170, 506), 1.0f, -1, 0.5f + 0.08f * rub, 62f + 26f * rub);
             kid.Light(Img(spots[0]), Hex("E9D4FF"), 0.6f); kid.Look(Img(96, 462), 0.8f);
@@ -358,6 +380,7 @@ public static partial class StoryBuilder
         }
         var ripple = new Ripple(sc.root, 46);
         Sfx("shimmer", C(5) + 0.3f, 0.6f); Sfx("whoosh", C(9), 0.45f); Sfx("touch", C(9) + 0.9f, 1f);
+        for (int k = 0; k < 5; k++) Sfx("step", c.start + (k + 0.5f) / 5f * (C(5) - c.start - 0.2f), 0.3f, k % 2);
         anims.Add(t =>
         {
             bool inD = t >= d.start;
@@ -386,7 +409,7 @@ public static partial class StoryBuilder
                 var sp = Vector3.Lerp(hover + new Vector3(8, 8), tip, go) + new Vector3(Mathf.Sin(t * 3f) * 0.8f - bump * 2.5f, Mathf.Sin(t * 2.4f) * 1.2f);
                 star.Set(sp, 0.75f + 0.25f * bump, flick + bump, t);
                 kid.Light(sp, Blue, 0.6f + 0.4f * bump); kid.Look(sp); kid.Emote(Pulse(t, C(9) + 0.8f, 0.25f, 2.2f));
-                touch.At(tip); touch.Set(Hex("BFE8FF"), bump * 1.3f); touch.Size(40 + 50 * bump, 40 + 50 * bump);
+                touch.At(tip); touch.Set(Hex("BFE8FF"), bump * 0.8f); touch.Size(40 + 50 * bump, 40 + 50 * bump);
                 ripple.Update(t, C(9) + 0.9f, tip, 2.2f, 20f, Hex("5AC8FA"), 1f, 0.95f, 0.14f);
                 Flare(sc.root.TransformPoint(tip), 0.8f * bump, Blue);
             }
@@ -411,6 +434,7 @@ public static partial class StoryBuilder
         var smoke0 = new Burst(sc.root, 7, 81, 29, glowTex, 9f, 2.2f, 34f, 2.6f, 5f, false, 80f); var smoke3 = new Burst(sc.root, 6, 82, 29, glowTex, 8f, 2.0f, 26f, 2.6f, 5f, false, 80f);
         var ember0 = new Burst(sc.root, 9, 83, 31, sparkTex, 26f, 1.3f, 9f, 0f, -34f, true, 200f);
         Sfx("gate_off", C(12) + 0.5f, 0.7f, 1); Sfx("gate_off", C(13) + 0.3f, 0.55f, 3); Sfx("shrink", C(13), 0.7f);
+        for (int k = 0; sh.start + (k + 0.5f) / 2.3f < C(12) + 0.4f; k++) Sfx("step", sh.start + (k + 0.5f) / 2.3f, 0.28f, k % 2);
         anims.Add(t =>
         {
             float u = U(t, sh.start, sh.end - sh.start), su = Smooth(u);
@@ -435,11 +459,12 @@ public static partial class StoryBuilder
     {
         var sc = sceneOf["F"] = MakeScene("F", 3, 30, 71); var sh = Sh("F");
         Sfx("dim", C(14), 0.7f);
+        for (int k = 0; sh.start + (k + 0.5f) / 1.8f < C(15) - 0.35f; k++) Sfx("step", sh.start + (k + 0.5f) / 1.8f, 0.26f, k % 2);
         var kid = NewKid(sc.root); var star = new Star(sc.root);
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
-            sc.Cam(Mathf.Lerp(600, 700, u), 322, 1.14f);
+            sc.Cam(Mathf.Lerp(600, 700, u), Wide ? 346 : 322, 1.14f);
             sc.Tint(Mathf.Lerp(0.82f, 0.36f, Smooth(U(t, C(14), 2.2f))));
             float walk = U(t, sh.start, C(15) - sh.start - 0.3f), sit = Smooth(U(t, C(15) - 0.2f, 0.7f));
             kid.Pose(Img(Mathf.Lerp(690, 742, Smooth(walk)), 452), 1.0f, 1, walk < 1f ? (t - sh.start) * 1.8f : 0f, Mathf.Lerp(70f, 52f, sit), sit);
@@ -469,6 +494,10 @@ public static partial class StoryBuilder
         var chartRipple = new Ripple(sc.root, 30, 2);
         Sfx("rise", C(17), 0.6f); Sfx("chart", C(18) - 0.2f, 0.8f); Sfx("whoosh", C(19), 0.6f); Sfx("rise", h.start + 0.2f, 0.4f);
         Sfx("place", tPlace, 1f); Sfx("whirr", tPlace + 0.25f, 0.6f);
+        for (int k = 0; h.start + (k + 0.5f) / 2.6f < C(22) - 0.15f; k++) if (h.start + (k + 0.5f) / 2.6f > h.start + 0.5f) Sfx("step", h.start + (k + 0.5f) / 2.6f, 0.18f, k % 2);
+        // constellation lines between the star-map lights (translucent, rebuilt each frame)
+        var webMesh = new Mesh(); var web = Part(sc.root, webMesh, Vector3.zero, Gold, 28).sharedMaterial;
+        var webV = new List<Vector3>(); var webT = new List<int>();
         anims.Add(t =>
         {
             bool inH = t >= h.start;
@@ -484,13 +513,24 @@ public static partial class StoryBuilder
                 chartStars[i].At(Img(chart.x + Mathf.Cos(a) * rad, chart.y + Mathf.Sin(a) * rad * 0.30f));
                 chartStars[i].Set(Hex("FFE9B8"), lit * (0.6f + 0.6f * Mathf.Abs(Mathf.Sin(t * 3f + i))));
             }
+            webV.Clear(); webT.Clear();
+            for (int i = 0; i < chartStars.Length; i++)
+                foreach (int j in new[] { (i + 2) % chartStars.Length, (i + 1) % chartStars.Length })
+                {
+                    if (j == (i + 1) % chartStars.Length && i % 2 == 1) continue;
+                    Vector3 a = chartStars[i].t.localPosition, b = chartStars[j].t.localPosition, n = Vector3.Cross(b - a, Vector3.forward).normalized * 0.7f;
+                    int o = webV.Count; webV.Add(a + n); webV.Add(a - n); webV.Add(b - n); webV.Add(b + n);
+                    webT.AddRange(new[] { o, o + 1, o + 2, o, o + 2, o + 3 });
+                }
+            webMesh.Clear(); webMesh.SetVertices(webV); webMesh.SetTriangles(webT, 0); webMesh.RecalculateBounds();
+            var wc = Hex("FFE2A8"); wc.a = 0.32f * lit * Smooth(U(t, C(18), 1.2f)); web.color = wc;
             hole.Set(Hex("070A1C"), 0.86f * (1f - placed));
             EllipseRing(slotMesh, 7f, 7f, 1.2f);
             var sc2 = Blue; sc2.a = U(t, C(19), 0.6f) * (1f - U(t, tPlace, 0.2f)) * (0.45f + 0.45f * Mathf.Sin(t * 5f)); slot.color = sc2;
 
             // the star: palm -> star map -> armillary side -> carried up -> centre
             float rise = Smooth(U(t, C(17), 1.3f)), cross = Smooth(U(t, C(19), 1.9f));
-            Vector3 palm = seat + new Vector3(16, 22), mapPos = Img(chart.x, chart.y + 30), wait = Img(706, 246);
+            Vector3 palm = seat + new Vector3(16, 22) * (CharacterVersion == "v3" ? Spec.scale : 1f), mapPos = Img(chart.x, chart.y + 30), wait = Img(706, 246);
             Vector3 p = Arc(palm, mapPos, rise, 14f);
             if (cross > 0f) p = Arc(mapPos, wait, cross, 26f);
             float size = Mathf.Lerp(0.45f, 1.05f, rise), bright = Mathf.Lerp(0.6f, 1.25f, rise);
@@ -500,7 +540,7 @@ public static partial class StoryBuilder
                 kid2.Pose(Vector3.Lerp(stairs0, stairs1, climb), 0.5f, 1, climb < 1f ? (t - h.start) * 2.6f : 0f, Mathf.Lerp(80f, 158f, tip), 0f, tip);
                 float carry = Smooth(U(t, h.start + 0.2f, 0.7f)), put = Smooth(U(t, C(22), 0.95f));
                 p = Vector3.Lerp(Vector3.Lerp(wait, kid2.Hand() + new Vector3(1, 5), carry), Img(core), put);
-                size = Mathf.Lerp(0.6f, 0.8f, put); bright = 1.2f + placed;
+                size = Mathf.Lerp(0.45f, 0.8f, put); bright = Mathf.Lerp(0.9f, 1.2f, put) + placed;
             }
             else kid2.Hide();
             star.Set(p + new Vector3(0, Mathf.Sin(t * 2.5f) * 1.2f * (1f - placed)), size, bright, t);
@@ -519,7 +559,7 @@ public static partial class StoryBuilder
             shock.Update(t, tPlace, Img(core), 8f, 190f, Hex("BFE8FF"), 0.5f, 1.4f, 0.2f);
             sparkle.Update(t, tPlace, Img(core), Hex("DDF2FF"), 1f);
             chartRipple.Update(t, C(18) - 0.2f, Img(chart), 20f, 150f, Gold, 0.5f, 1.6f, 0.3f);
-            Flare(sc.root.TransformPoint(Img(core)), 0.9f * flash, Blue);
+            Flare(sc.root.TransformPoint(Img(core)), 0.6f * flash, Blue);
             burst.Set(Blue, flash * 1.5f + placed * (0.55f + 0.15f * Mathf.Sin(t * 4f))); burst.Size(120 + 240 * flash, 120 + 240 * flash);
             rayH.Set(Hex("BFE8FF"), flash * 1.3f + placed * 0.35f); rayV.Set(Hex("BFE8FF"), flash * 1.3f + placed * 0.35f);
             // Rings ease into rotation; each is a circle turning about an in-plane axis, so it shows as a breathing ellipse.
@@ -529,7 +569,7 @@ public static partial class StoryBuilder
                 float th = tiltAt[i] * Mathf.Deg2Rad + ang * (1.6f + i * 0.7f) * (i % 2 == 0 ? 1 : -1);
                 EllipseRing(ringMesh[i], rr[i], Mathf.Max(1.5f, rr[i] * Mathf.Abs(Mathf.Cos(th))), 2.4f);
                 ringT[i].localRotation = Quaternion.Euler(0, 0, 25f + i * 55f + ang * 14f);
-                var rc = Color.Lerp(Gold, White, 0.25f + 0.5f * flash); rc.a = Smooth(U(t, tPlace - 0.1f, 0.5f)) * 0.95f; ringMat[i].color = rc;
+                var rc = Color.Lerp(Gold, White, 0.25f + 0.5f * flash); rc.a = Smooth(U(t, tPlace - 0.1f, 0.5f)) * 0.78f; ringMat[i].color = rc;
             }
             var spos = p + new Vector3(0, Mathf.Sin(t * 2.5f) * 1.2f * (1f - placed));
             kid.Light(spos, Blue, 0.4f + 0.5f * rise); kid.Look(spos); kid.Emote(Pulse(t, C(18) - 0.2f, 0.4f, 2.0f));
@@ -550,7 +590,7 @@ public static partial class StoryBuilder
         anims.Add(t =>
         {
             float u = Smooth(U(t, sh.start, sh.end - sh.start));
-            sc.Cam(Mathf.Lerp(630, 600, u), 288, Mathf.Lerp(1.0f, 1.05f, u));
+            sc.Cam(Mathf.Lerp(630, 600, u), Wide ? 316 : 288, Mathf.Lerp(1.0f, 1.05f, u));
             float weave = U(t, C(24) - 0.2f, 2.6f), home = Smooth(U(t, C(27), 1.2f));
             sc.Tint(Mathf.Lerp(0.72f, 1f, Smooth(weave)));
             for (int i = 0; i < flow.Length; i++)
@@ -633,8 +673,15 @@ public static partial class StoryBuilder
         if (Wide) { var shadeBottom = Night; shadeBottom.a = 0.72f; Part(null, Quad(W, 300, clear, shadeBottom), Px(W / 2f, H - 150f), White, 900); }
         else
         {
-            Part(null, Quad(W, H - VH + 2), Px(W / 2f, (VH + H) / 2f), Night, 900);
-            Part(null, Quad(W, 190, clear, Night), Px(W / 2f, VH - 95f), White, 900);
+            // frosted-glass panel: a blurred mirror of the current backdrop under a translucent night tint
+            float ph = H - VH + 2; var m = Quad(W, ph);
+            m.SetUVs(0, new List<Vector2> { new Vector2(0, 0.42f), new Vector2(1, 0.42f), new Vector2(1, 0f), new Vector2(0, 0f) });
+            var glass = Part(null, m, Px(W / 2f, (VH + H) / 2f), White, 898).sharedMaterial;
+            var glassShade = Night; glassShade.a = 0.78f;
+            Part(null, Quad(W, ph), Px(W / 2f, (VH + H) / 2f), glassShade, 899);
+            Part(null, Quad(W, 3), Px(W / 2f, VH + 1f), new Color(0.75f, 0.8f, 1f, 0.18f), 901);      // thin highlight on the glass edge
+            Part(null, Quad(W, 190, clear, glassShade), Px(W / 2f, VH - 95f), White, 900);
+            anims.Add(t => { if (SceneNow != null) { glass.mainTexture = SceneNow.blur; glass.color = SceneNow.bg.color; } });
         }
         Part(null, Quad(W, 200, new Color(0, 0, 0, 0.45f), new Color(0, 0, 0, 0f)), Px(W / 2f, 100f), White, 900);
         curtain = Part(null, Quad(W, H), Px(W / 2f, H / 2f), Night, 1000).sharedMaterial;

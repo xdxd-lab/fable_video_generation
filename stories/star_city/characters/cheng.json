@@ -1,9 +1,9 @@
 {
- "_note": "阿澄 KidV2 palette (hex RGB, no #). Missing fields fall back to the defaults in StoryBuilder.Apprentice.cs.",
+ "_note": "阿澄 KidV2/V3 palette; scale is v3 only (hex RGB, no #). Missing fields fall back to the defaults in StoryBuilder.Apprentice.cs.",
  "robe": "5B46B0", "robeLight": "7B63D9", "robeDark": "433288",
  "trim": "E9C46A", "trimDark": "B8923E",
  "skin": "F6D7BD", "skinShade": "E8BFA3", "hair": "4A2E2A",
  "hat": "7C5CE0", "hatDark": "553CB0", "scarf": "3E9BD6", "boots": "2A2140",
  "outline": "1A1230", "eye": "221A38", "cheek": "F29C9C", "mouth": "8A3B4A",
- "outlineWidth": 1.1
+ "outlineWidth": 1.1, "scale": 1.25
 }

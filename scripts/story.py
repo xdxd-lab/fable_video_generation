@@ -147,8 +147,8 @@ def mix():
     st = lufs_stats(pre)   # second loudnorm pass in linear mode keeps the dynamics, just sets the level
     run("ffmpeg", "-v", "error", "-y", "-i", pre, "-af",
         f"loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I={st['input_i']}:measured_TP={st['input_tp']}"
-        f":measured_LRA={st['input_lra']}:measured_thresh={st['input_thresh']}:offset={st['target_offset']}",
-        "-ar", "48000", "-ac", "2", pre.with_name("mix_ln.wav"))
+        f":measured_LRA={st['input_lra']}:measured_thresh={st['input_thresh']}:offset={st['target_offset']},alimiter=limit=0.78:attack=3:release=60:level=false",
+        "-ar", "48000", "-ac", "2", pre.with_name("mix_ln.wav"))   # limiter at -2.2 dBFS leaves room for AAC overshoot
     pad_to(pre.with_name("mix_ln.wav"), out)
     pre.unlink(); pre.with_name("mix_ln.wav").unlink()
     print(out, "; ".join(note))

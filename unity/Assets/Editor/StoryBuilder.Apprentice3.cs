@@ -287,6 +287,7 @@ public static partial class StoryBuilder
 
         public override void Pose(Vector3 feetLocal, float scale, int facing, float walk = 0f, float armDeg = 0f, float sit = 0f, float tip = 0f)
         {
+            scale *= Spec.scale;
             feet = feetLocal; face = facing; this.armDeg = armDeg; sitNow = sit; scaleNow = scale;
             root.gameObject.SetActive(scale > 0f);
             if (scale <= 0f) { shadowSoft.Set(Color.black, 0f); shadowCore.Set(Color.black, 0f); emblem.Set(Gold, 0f); return; }

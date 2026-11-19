@@ -26,6 +26,7 @@ public static partial class StoryBuilder
         public string skin = "F6D7BD", skinShade = "E8BFA3", hair = "4A2E2A", hat = "7C5CE0", hatDark = "553CB0";
         public string scarf = "5AC8FA", boots = "2A2140", outline = "1A1230", eye = "221A38", cheek = "F29C9C", mouth = "8A3B4A";
         public float outlineWidth = 1.1f;
+        public float scale = 1f;            // v3 only: on-screen size multiplier (Hand() follows it)
     }
     static CharacterSpec Spec = new CharacterSpec();
 
